@@ -9,7 +9,7 @@ const { verifyToken, verifyAdmin } = require('../middleware/auth');
  * GET /api/admin/settings
  * Get global game settings
  */
-router.get('/settings', verifyToken, verifyAdmin, async (req, res) => {
+router.get('/settings', verifyToken, async (req, res) => {
   try {
     let settings = await GameSettings.findOne({ id: 'global_settings' });
     if (!settings) {

@@ -2,29 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '../utils/store';
 import { adminAPI, authAPI } from '../utils/api';
-import { 
-  FiLogOut, FiCopy, FiCheck, FiUser, FiUsers, FiShield, 
-  FiBarChart2, FiBook, FiHash, FiZap, FiPlay, FiLock, FiChevronRight,
-  FiAward
- } from 'react-icons/fi';
+import { FiUser, FiCheckCircle, FiAlertTriangle, FiBook, FiPlay, FiLock, FiX, FiDownload, FiActivity } from 'react-icons/fi';
 import Header from '../components/Header';
-import Button from '../components/Button';
 import Card from '../components/Card';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { isLoggedIn, teamId, role, memberName, logout } = useGameStore();
-  const [copied, setCopied] = useState(false);
+  const { isLoggedIn, teamId, role } = useGameStore();
   const [teamData, setTeamData] = useState(null);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isHandbookOpen, setIsHandbookOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) {
       navigate('/login');
       return;
     }
-
     if (teamId === 'ADMIN-EVENT-2026') {
       navigate('/admin');
       return;
@@ -45,182 +39,172 @@ export default function ProfilePage() {
       }
     };
     fetchData();
-    const interval = setInterval(fetchData, 15000);
+    const interval = setInterval(fetchData, 2000);
     return () => clearInterval(interval);
   }, [isLoggedIn, navigate, teamId]);
 
-  const copyTeamId = () => {
-    navigator.clipboard.writeText(teamId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  if (!isLoggedIn || loading) {
+    return (
+      <div className="min-h-screen bg-brand-bg flex items-center justify-center font-sans text-brand-primary">
+        <div className="flex flex-col items-center">
+            <div className="w-48 h-48 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-16"></div>
+            <p className="animate-pulse font-bold tracking-widest uppercase text-12">Synchronizing with AWS Command...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const adminActiveRound = settings?.currentRound || 0;
+  const isRoundActive = settings?.isRoundActive;
+  const hasCompletedCurrentRound = Object.keys(teamData?.gameState?.[`year${adminActiveRound}`]?.answers?.[role?.toLowerCase()] || {}).length > 0;
+  const isCurrentlyPlayable = isRoundActive && !hasCompletedCurrentRound;
+  const isEliminated = teamData?.gameState?.[`year${adminActiveRound}`]?.answers?.[role?.toLowerCase()]?.disqualified;
+
+  const roleDescriptions = {
+    cto: { name: 'Chief Technology Officer', desc: (<ul className="list-disc pl-20 space-y-2"><li>System design decisions</li><li>Tech stack ownership</li><li>Performance & scalability</li></ul>) },
+    cfo: { name: 'Chief Financial Officer', desc: (<ul className="list-disc pl-20 space-y-2"><li>Budget constraints</li><li>Resource allocation</li><li>Financial trade-offs</li></ul>) },
+    pm: { name: 'Product Manager', desc: (<ul className="list-disc pl-20 space-y-2"><li>Define product roadmap</li><li>Manage feature prioritization</li><li>Align team goals</li></ul>) }
   };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
-  if (!isLoggedIn) return null;
-
-  const currentYear = teamData?.currentYear ?? 0;
-  const isRoundActive = settings?.isRoundActive && settings?.currentRound === currentYear;
 
   return (
-    <div className="min-h-screen bg-brand-bg flex flex-col font-sans">
-      <Header showLeaderboard={true} title="Operational Dashboard" />
+    <div className="min-h-screen bg-brand-bg flex flex-col font-sans text-brand-text-primary">
+      <Header showLeaderboard={false} title={teamData?.teamName ? `${teamData.teamName} Dashboard` : 'Team Dashboard'} />
       
-      <main className="max-w-[1200px] mx-auto px-16 py-48 flex-1 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-32">
-          
-          {/* Column 1: Identity */}
-          <div className="lg:col-span-1 space-y-32">
-            <Card className="flex flex-col items-center p-32">
-               <div className="w-80 h-80 bg-brand-primary rounded-button flex items-center justify-center mb-24 shadow-glow">
-                 <FiUser size={40} className="text-white" />
-               </div>
-               <h1 className="text-24 font-semibold text-brand-text-primary mb-8 tracking-tight">{memberName || 'Agent'}</h1>
-               <div className="px-16 py-4 bg-brand-elevated text-brand-text-secondary rounded-button font-medium tracking-wider text-12 mb-32 border border-brand-border">
-                 {role || 'Specialist'}
-               </div>
-               
-               <div className="w-full space-y-16">
-                  <div className="bg-brand-elevated p-16 rounded-button border border-brand-border">
-                      <p className="text-12 font-medium text-brand-text-muted uppercase tracking-widest mb-8">Sync ID</p>
-                      <div className="flex items-center justify-between">
-                          <span className="font-mono font-semibold text-brand-text-primary">{teamId}</span>
-                          <button onClick={copyTeamId} className="text-brand-primary hover:scale-110 transition">
-                              {copied ? <FiCheck size={18} /> : <FiCopy size={18} />}
-                          </button>
-                      </div>
-                  </div>
-                  <Button variant="ghost" onClick={handleLogout} className="w-full text-brand-text-muted hover:text-danger">
-                    Interrupt Linkage
-                  </Button>
-               </div>
-            </Card>
-
-            <Card elevated className="p-32">
-                <div className="flex items-center space-x-12 mb-24">
-                    <FiAward className="text-brand-primary" size={20} />
-                    <h3 className="text-14 font-medium text-brand-text-muted uppercase tracking-widest">Efficiency Points</h3>
-                </div>
-                <div className="flex items-baseline space-x-12">
-                    <span className="text-48 font-semibold tracking-tight text-brand-text-primary">{teamData?.points || 0}</span>
-                    <span className="text-12 font-medium text-brand-text-muted uppercase">Total Score</span>
-                </div>
-            </Card>
+      <main className="max-w-[1200px] mx-auto px-16 py-24 flex-1 w-full space-y-20">
+        
+        {/* Global Stats Bar — Team Name, ID, Round Status */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 bg-brand-elevated p-8 rounded-xl border border-brand-border">
+          <div className="px-16 py-8 bg-brand-surface rounded-lg border border-brand-border/50">
+            <p className="text-10 text-brand-text-muted uppercase tracking-widest mb-2 font-bold">Team Identifier</p>
+            <p className="text-14 font-mono font-bold text-brand-primary">{teamData?.teamId}</p>
           </div>
-
-          {/* Column 2 & 3: Mission & Roster */}
-          <div className="lg:col-span-2 space-y-32">
-            {/* Mission Critical Round Starter */}
-            <Card className="p-48 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-200 h-200 bg-brand-primary/5 rounded-full -mr-100 -mt-100 transition-transform group-hover:scale-110 duration-700"></div>
-                <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-32">
-                        <div>
-                            <span className="text-12 font-medium text-brand-primary uppercase tracking-widest block mb-8 text-opacity-80">Live Mission Protocol</span>
-                            <h2 className="text-32 font-semibold text-brand-text-primary tracking-tight">Year {currentYear} Round</h2>
-                        </div>
-                        <div className={`px-16 py-8 rounded-button flex items-center space-x-8 font-medium text-12 uppercase tracking-wider border ${
-                            isRoundActive ? 'bg-success/10 text-success border-success/20' : 'bg-brand-elevated text-brand-text-muted border-brand-border'
-                        }`}>
-                            <div className={`w-8 h-8 rounded-full ${isRoundActive ? 'bg-success animate-pulse' : 'bg-brand-text-muted'}`}></div>
-                            <span>{isRoundActive ? 'Synchronized' : 'Encrypted'}</span>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-32">
-                        <div className="flex-1">
-                            <p className="text-brand-text-secondary text-16 leading-relaxed mb-32">
-                                {isRoundActive 
-                                    ? `Strategic window is open for Year ${currentYear}. Collaborate with your leadership to optimize resources.`
-                                    : "Mission assets are locked by Command Hub. Awaiting sequential round authorization."
-                                }
-                            </p>
-                            <Button
-                                onClick={() => isRoundActive && navigate(`/question/${currentYear}`)}
-                                disabled={!isRoundActive}
-                                className="w-full md:w-auto"
-                            >
-                                {isRoundActive ? <FiPlay /> : <FiLock />}
-                                <span>{isRoundActive ? 'Commence Round' : 'Round Locked'}</span>
-                            </Button>
-                        </div>
-                        <div className="bg-brand-elevated p-24 rounded-button border border-brand-border text-center min-w-[160px] flex flex-col justify-center">
-                            <span className="text-32 font-mono font-semibold text-brand-text-primary block">0{currentYear + 1}</span>
-                            <span className="text-12 font-medium text-brand-text-muted uppercase tracking-widest mt-4">Active Phase</span>
-                        </div>
-                    </div>
-                </div>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-32">
-                {/* Team Roster */}
-                <Card className="p-32">
-                    <div className="flex items-center space-x-12 mb-32">
-                        <FiUsers className="text-brand-primary" size={20} />
-                        <h3 className="text-18 font-semibold text-brand-text-primary tracking-tight">Team Roster</h3>
-                    </div>
-                    {loading ? (
-                        <div className="flex flex-col items-center py-32 opacity-20 animate-pulse">
-                            <FiZap size={32} className="text-brand-primary" />
-                        </div>
-                    ) : (
-                        <div className="space-y-12">
-                            {teamData?.members?.map((member, idx) => (
-                                <div key={idx} className={`p-16 rounded-button flex items-center justify-between border transition-all ${
-                                    member.role.toLowerCase() === role?.toLowerCase() 
-                                    ? 'bg-brand-elevated border-brand-primary/50' 
-                                    : 'bg-brand-surface border-brand-border'
-                                }`}>
-                                    <div className="flex items-center space-x-12">
-                                        <div className={`w-40 h-40 rounded-button flex items-center justify-center font-bold text-14 ${
-                                            member.role.toLowerCase() === role?.toLowerCase() ? 'bg-brand-primary text-white' : 'bg-brand-elevated text-brand-text-muted'
-                                        }`}>
-                                            {member.name.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-14 text-brand-text-primary">{member.name}</p>
-                                            <p className="text-12 text-brand-text-muted uppercase tracking-widest">{member.role}</p>
-                                        </div>
-                                    </div>
-                                    {member.role.toLowerCase() === role?.toLowerCase() && (
-                                        <span className="text-10 font-bold text-brand-primary uppercase tracking-widest border border-brand-primary/30 px-8 py-2 rounded-button bg-brand-primary/5">YOU</span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </Card>
-
-                {/* Secondary Actions */}
-                <div className="space-y-16">
-                    <button onClick={()=>navigate('/training')} className="w-full bg-brand-surface p-24 rounded-card border border-brand-border hover:border-brand-primary/30 transition-all text-left group flex items-center space-x-16">
-                        <div className="bg-brand-elevated p-16 rounded-button text-brand-text-muted group-hover:bg-brand-primary group-hover:text-white transition-all">
-                            <FiBook size={24} />
-                        </div>
-                        <div>
-                            <h4 className="text-18 font-semibold text-brand-text-primary tracking-tight">Training</h4>
-                            <p className="text-brand-text-muted text-12 mt-4 font-medium uppercase tracking-wider">Operational Protocols</p>
-                        </div>
-                    </button>
-
-                    <button onClick={()=>navigate('/leaderboard')} className="w-full bg-brand-surface p-24 rounded-card border border-brand-border hover:border-brand-primary/30 transition-all text-left group flex items-center space-x-16">
-                        <div className="bg-brand-elevated p-16 rounded-button text-brand-text-muted group-hover:bg-brand-primary group-hover:text-white transition-all">
-                            <FiBarChart2 size={24} />
-                        </div>
-                        <div>
-                            <h4 className="text-18 font-semibold text-brand-text-primary tracking-tight">Leaderboard</h4>
-                            <p className="text-brand-text-muted text-12 mt-4 font-medium uppercase tracking-wider">Unit Rankings</p>
-                        </div>
-                    </button>
-                </div>
+          <div className="px-16 py-8 bg-brand-surface rounded-lg border border-brand-border/50">
+            <p className="text-10 text-brand-text-muted uppercase tracking-widest mb-2 font-bold">Operational Cluster</p>
+            <p className="text-14 font-bold text-brand-text-primary truncate">{teamData?.teamName}</p>
+          </div>
+          <div className="md:col-span-2 px-16 py-8 bg-brand-surface rounded-lg border border-brand-border/50 flex items-center justify-between">
+            <div>
+                <p className="text-10 text-brand-text-muted uppercase tracking-widest mb-2 font-bold">Mission Status</p>
+                {isEliminated ? (
+                  <div className="text-red-400 font-bold text-14 flex items-center"><FiAlertTriangle className="mr-6" /> ELIMINATED — Round {adminActiveRound + 1}</div>
+                ) : hasCompletedCurrentRound ? (
+                  <div className="text-emerald-400 font-bold text-14 flex items-center"><FiCheckCircle className="mr-6" /> Round {adminActiveRound + 1} Committed</div>
+                ) : isRoundActive ? (
+                  <div className="text-brand-primary font-bold text-14 flex items-center animate-pulse"><FiActivity className="mr-6" /> Round {adminActiveRound + 1} LIVE</div>
+                ) : (
+                  <div className="text-brand-text-muted font-semibold text-14 flex items-center"><FiLock className="mr-6" /> Standby — Round {adminActiveRound + 1}</div>
+                )}
             </div>
+            <span className="text-10 font-bold text-emerald-400 uppercase bg-emerald-500/10 px-8 py-2 rounded border border-emerald-500/20">{teamData?.eventStatus}</span>
           </div>
         </div>
+
+        {/* Role Cards — THE ONLY PLACE for role info now */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
+          {['cto', 'cfo', 'pm'].map(r => {
+            const member = teamData?.members?.find(m => m.role?.toLowerCase() === r);
+            const isMe = r === role?.toLowerCase();
+            return (
+              <Card key={r} className={`p-20 border-2 transition-all ${isMe ? 'border-brand-primary shadow-glow bg-brand-primary/5' : 'border-brand-border bg-brand-surface/40 opacity-80 hover:opacity-100'}`}>
+                <div className="flex justify-between items-start mb-16">
+                  <div className={`p-10 rounded-xl ${isMe ? 'bg-brand-primary text-white' : 'bg-brand-elevated text-brand-text-muted border border-brand-border'}`}>
+                    <FiUser size={24} />
+                  </div>
+                  {isMe && <span className="bg-brand-primary/20 text-brand-primary px-8 py-2 rounded text-10 font-bold uppercase tracking-widest border border-brand-primary/30">Active Operator</span>}
+                </div>
+                <h3 className="text-14 font-bold text-brand-text-primary uppercase tracking-wide">{roleDescriptions[r].name}</h3>
+                <div className="mt-8 pt-8 border-t border-brand-border/30">
+                  <p className="text-16 font-bold text-brand-text-secondary">{member?.name || 'Vacant'}</p>
+                  <p className="text-11 font-mono text-brand-text-muted mt-4 opacity-60">AuthID: {member?.userId || 'N/A'}</p>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Responsibilities Section */}
+        <Card className="p-20 border-brand-border bg-brand-surface/40">
+          <div className="flex items-center gap-10 mb-12 border-b border-brand-border pb-8">
+            <FiActivity className="text-brand-primary" size={18} />
+            <h3 className="text-14 font-bold text-brand-text-primary uppercase tracking-wider">Tactical Responsibilities</h3>
+          </div>
+          <div className="text-13 text-brand-text-muted leading-relaxed">
+            {roleDescriptions[role?.toLowerCase()]?.desc || 'No responsibilities defined.'}
+          </div>
+        </Card>
+
+        {/* Footer Actions — Compact & Pro */}
+        <div className="flex flex-wrap justify-between items-center gap-12 bg-brand-elevated/30 p-12 rounded-xl border border-brand-border">
+          <div className="flex gap-8">
+            <button 
+                onClick={() => setIsHandbookOpen(!isHandbookOpen)} 
+                className={`h-36 px-16 rounded-lg text-12 font-bold flex items-center gap-8 border transition-all ${isHandbookOpen ? 'bg-brand-primary text-white border-brand-primary shadow-glow-sm' : 'text-brand-text-secondary hover:text-brand-primary border-brand-border hover:bg-brand-surface'}`}
+            >
+                <FiBook size={14} />
+                {isHandbookOpen ? 'Close Handbook' : 'Open Strategic Handbook'}
+            </button>
+
+            <a href="/handbook.pdf" download className="h-36 px-16 rounded-lg bg-brand-surface border border-brand-border flex items-center gap-8 text-brand-text-secondary hover:text-brand-primary transition-colors text-12 font-bold">
+                <FiDownload size={14} />
+                Download PDF
+            </a>
+          </div>
+
+          <div className="flex gap-8">
+            <button onClick={() => navigate('/training')} className="h-36 px-16 rounded-lg text-12 font-bold text-brand-text-secondary hover:text-brand-primary border border-brand-border hover:bg-brand-surface flex items-center gap-8 transition-all">
+                <FiActivity size={14} /> Training Simulations
+            </button>
+
+            {hasCompletedCurrentRound && !isEliminated ? (
+                <button 
+                    onClick={() => navigate(`/answers/${adminActiveRound}`)}
+                    className="h-36 px-20 rounded-lg text-12 font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-8 shadow-lg shadow-emerald-900/20 transition-all hover:scale-105"
+                >
+                    <FiCheckCircle size={14} /> View Debrief
+                </button>
+            ) : !isEliminated ? (
+                <button 
+                    onClick={() => isCurrentlyPlayable && navigate(`/instructions/${adminActiveRound}`)}
+                    disabled={!isCurrentlyPlayable}
+                    className={`h-36 px-24 rounded-lg text-12 font-bold uppercase tracking-wider flex items-center gap-8 transition-all ${
+                        isCurrentlyPlayable 
+                        ? 'bg-brand-primary hover:scale-105 text-white shadow-lg shadow-brand-primary/30' 
+                        : 'opacity-50 cursor-not-allowed bg-brand-surface border border-brand-border text-brand-text-muted'
+                    }`}
+                >
+                    <FiPlay size={14} /> {isRoundActive ? `Initiate Round ${adminActiveRound + 1}` : `Awaiting Round ${adminActiveRound + 1}`}
+                </button>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Handbook Modal */}
+        {isHandbookOpen && (
+          <div className="fixed inset-0 z-[100] flex justify-end p-12 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+            <aside className="w-full max-w-[600px] h-full bg-brand-bg border border-brand-border rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right-8 duration-500">
+              <div className="px-20 py-12 border-b border-brand-border bg-brand-surface flex justify-between items-center">
+                <div className="flex items-center gap-12">
+                    <div className="p-8 bg-brand-primary/10 rounded-lg text-brand-primary">
+                        <FiBook size={18} />
+                    </div>
+                    <span className="font-bold text-12 uppercase tracking-widest text-brand-text-primary">Strategic Handbook</span>
+                </div>
+                <div className="flex items-center gap-8">
+                  <a href="/handbook.pdf" download className="p-8 rounded-lg hover:bg-brand-primary/10 text-brand-text-muted hover:text-brand-primary transition-colors" title="Download Official Copy">
+                    <FiDownload size={18} />
+                  </a>
+                  <button onClick={() => setIsHandbookOpen(false)} className="p-8 rounded-lg hover:bg-red-500/10 text-brand-text-muted hover:text-red-400 transition-colors">
+                    <FiX size={20} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 bg-white">
+                <iframe src="/handbook.pdf#view=FitH&toolbar=0" className="w-full h-full border-none" title="Handbook PDF" />
+              </div>
+            </aside>
+          </div>
+        )}
       </main>
     </div>
   );
 }
-

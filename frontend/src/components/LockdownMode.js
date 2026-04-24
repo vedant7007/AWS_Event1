@@ -9,50 +9,46 @@ import React, { useEffect, useState } from 'react';
  * - Warns on first 3 tab switches, auto-submits on 4th
  */
 const LockdownMode = ({ onTabSwitch, onWarning }) => {
-  const [tabSwitchCount, setTabSwitchCount] = useState(0);
-  const [isVisible, setIsVisible] = useState(true);
+  const [violationCount, setViolationCount] = useState(0);
 
   useEffect(() => {
-    // Track visibility (tab switch)
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        const newCount = tabSwitchCount + 1;
-        setTabSwitchCount(newCount);
-        onTabSwitch(newCount);
-        
-        if (newCount >= 3) {
-          onWarning(`Auto-submitting on 4th attempt (${4 - newCount} remaining)`);
-        }
+    const handleViolation = (reason) => {
+      const newCount = violationCount + 1;
+      setViolationCount(newCount);
+      onTabSwitch(newCount, reason);
+      
+      if (newCount < 3) {
+        onWarning(`Warning: ${reason}. Attempt ${newCount}/3 before disqualification.`);
       }
     };
 
-    // Disable copy
-    const handleCopy = (e) => {
-      e.preventDefault();
-      alert('Copy-paste is disabled during the exam.');
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handleViolation('Tab switch detected');
+      }
     };
 
-    // Disable paste
-    const handlePaste = (e) => {
-      e.preventDefault();
-      alert('Copy-paste is disabled during the exam.');
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        handleViolation('Exited fullscreen');
+      }
     };
 
-    // Disable right-click
-    const handleContextMenu = (e) => {
-      e.preventDefault();
-      alert('Right-click is disabled during the exam.');
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+      onWarning('Back navigation is disabled.');
     };
 
-    // Disable F12 and other dev tools shortcuts
+    const handleCopy = (e) => { e.preventDefault(); alert('Copy-paste disabled.'); };
+    const handlePaste = (e) => { e.preventDefault(); alert('Copy-paste disabled.'); };
+    const handleContextMenu = (e) => { e.preventDefault(); alert('Right-click disabled.'); };
     const handleKeyDown = (e) => {
       if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
         e.preventDefault();
-        alert('Developer tools are disabled during the exam.');
+        alert('Developer tools disabled.');
       }
     };
 
-    // Request fullscreen
     const handleFullscreen = async () => {
       try {
         await document.documentElement.requestFullscreen();
@@ -61,25 +57,31 @@ const LockdownMode = ({ onTabSwitch, onWarning }) => {
       }
     };
 
+    // Push initial state to prevent immediate back
+    window.history.pushState(null, '', window.location.href);
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    window.addEventListener('popstate', handlePopState);
     document.addEventListener('copy', handleCopy);
     document.addEventListener('paste', handlePaste);
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('keydown', handleKeyDown);
 
-    // Request fullscreen on mount
     handleFullscreen();
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('popstate', handlePopState);
       document.removeEventListener('copy', handleCopy);
       document.removeEventListener('paste', handlePaste);
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [tabSwitchCount, onTabSwitch, onWarning]);
+  }, [violationCount, onTabSwitch, onWarning]);
 
-  return null; // This component doesn't render anything, just manages security
+  return null;
 };
 
 export default LockdownMode;

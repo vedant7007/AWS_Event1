@@ -71,13 +71,65 @@ const AdminDashboard = () => {
   }, []);
 
   const handleStartStopRound = async (start) => {
+    const targetYearStr = menuItems.find(m => m.id === activeTab)?.year;
+    const targetYear = Number(targetYearStr);
+
+    if (start) {
+        // Enforce sequential rounds
+        if (targetYear > settings.currentRound + 1) {
+             setMsg({ type: 'error', text: `You have not completed Round ${targetYear}. Enforcing sequential progression.` });
+             return;
+        }
+        if (targetYear < settings.currentRound) {
+             setMsg({ type: 'error', text: `Cannot restart previous rounds. Use Reset Competition for a fresh start.` });
+             return;
+        }
+        
+        const hasProgress = teams.some(t => {
+            const yd = t.gameState?.[`year${targetYear}`];
+            return yd && (Object.keys(yd.answers?.cto || {}).length > 0 || Object.keys(yd.answers?.cfo || {}).length > 0 || Object.keys(yd.answers?.pm || {}).length > 0);
+        });
+
+        if (targetYear === settings.currentRound && hasProgress && !settings.isRoundActive) {
+             setMsg({ type: 'error', text: `Cannot restart a round that has already been played. Use Reset Competition for a fresh start.` });
+             return;
+        }
+        
+        // Enforce that ALL teams completed the previous round
+        if (targetYear > 0 && targetYear === settings.currentRound + 1) {
+             const previousYear = targetYear - 1;
+             
+             // Check if previous round even started
+             // If currentRound is equal to previousYear but isRoundActive is still true, it hasn't finished yet.
+             // Wait, if currentRound < previousYear, that's already blocked.
+             
+             const uncompletedTeams = teams.filter(t => {
+                 // Check if team has answers for all 3 roles (or if disqualified)
+                 const yearData = t.gameState?.[`year${previousYear}`];
+                 const ctoDone = yearData?.answers?.cto && Object.keys(yearData.answers.cto).length > 0;
+                 const cfoDone = yearData?.answers?.cfo && Object.keys(yearData.answers.cfo).length > 0;
+                 const pmDone = yearData?.answers?.pm && Object.keys(yearData.answers.pm).length > 0;
+                 return !(ctoDone && cfoDone && pmDone);
+             });
+
+             if (uncompletedTeams.length > 0) {
+                 if (settings.currentRound === previousYear && !settings.isRoundActive && uncompletedTeams.length === teams.length) {
+                     setMsg({ type: 'error', text: `Round ${previousYear + 1} has not started yet.` });
+                 } else {
+                     setMsg({ type: 'error', text: `Round ${previousYear + 1} is still in progress.` });
+                 }
+                 return;
+             }
+        }
+    }
+
     try {
       const res = await adminAPI.updateSettings({
-        currentRound: settings.currentRound,
+        currentRound: targetYear,
         isRoundActive: start
       });
       setSettings(res.data);
-      setMsg({ type: 'success', text: `Mission Phase ${settings.currentRound} is now ${start ? 'LIVE' : 'STANDBY'}.` });
+      setMsg({ type: 'success', text: `Mission Phase ${targetYear + 1} is now ${start ? 'LIVE' : 'STANDBY'}.` });
     } catch (err) {
       setMsg({ type: 'error', text: 'Operational transition failed.' });
     }
@@ -154,6 +206,25 @@ const AdminDashboard = () => {
       setNewAdmin({ teamId: '', teamName: '', password: '' });
     } catch (err) {
       setMsg({ type: 'error', text: 'Admin creation failed. Check parameters.' });
+    }
+  };
+
+  const handleResetCompetition = async () => {
+    if (window.confirm('WARNING: Are you sure you want to reset the competition? This will wipe all progress, submissions, and results, but keep teams and questions.')) {
+      try {
+        await adminAPI.resetGame({ resetType: 'soft' });
+        setMsg({ type: 'success', text: 'Competition successfully reset. All teams are back to initial state.' });
+        
+        // Refresh data
+        const [sets, tms] = await Promise.all([
+          adminAPI.getSettings(),
+          adminAPI.getTeams()
+        ]);
+        setSettings(sets.data);
+        setTeams(tms.data.teams || []);
+      } catch (err) {
+        setMsg({ type: 'error', text: 'Reset failed. Check server logs.' });
+      }
     }
   };
 
@@ -282,6 +353,7 @@ const AdminDashboard = () => {
                                     <tr>
                                         <th className="px-[24px] py-[16px] text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest">#</th>
                                         <th className="px-[24px] py-[16px] text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest">Team Name</th>
+                                        <th className="px-[24px] py-[16px] text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest">Team ID</th>
                                         <th className="px-[24px] py-[16px] text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest text-center">CTO</th>
                                         <th className="px-[24px] py-[16px] text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest text-center">CFO</th>
                                         <th className="px-[24px] py-[16px] text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest text-center">PM</th>
@@ -303,6 +375,9 @@ const AdminDashboard = () => {
                                                 </td>
                                                 <td className="px-[24px] py-[20px]">
                                                     <span className="text-[16px] font-semibold text-[#F9FAFB] group-hover:text-[#7C3AED] transition-colors">{team.teamName}</span>
+                                                </td>
+                                                <td className="px-[24px] py-[20px]">
+                                                    <span className="text-[12px] font-mono text-[#9CA3AF] bg-[#111827] px-[8px] py-[4px] rounded border border-[#1F2937]">{team.teamId}</span>
                                                 </td>
                                                 <td className="px-[24px] py-[20px] text-center">
                                                     <span className={`text-[14px] font-medium ${cto ? 'text-[#F9FAFB]' : 'text-[#4B5563]'}`}>{cto ? cto.name : '—'}</span>
@@ -443,24 +518,52 @@ const AdminDashboard = () => {
                 </div>
             )}
 
-            {['r1', 'r2', 'r3', 'r4', 'r5'].includes(activeTab) && (
+            {['r1', 'r2', 'r3', 'r4', 'r5'].includes(activeTab) && (() => {
+                const tabYear = menuItems.find(m => m.id === activeTab)?.year;
+                const isThisRoundLive = settings?.currentRound === tabYear && settings?.isRoundActive;
+                const hasProg = teams.some(t => {
+                    const yd = t.gameState?.[`year${tabYear}`];
+                    return yd && (Object.keys(yd.answers?.cto || {}).length > 0 || Object.keys(yd.answers?.cfo || {}).length > 0 || Object.keys(yd.answers?.pm || {}).length > 0);
+                });
+                const isLocked = tabYear < settings?.currentRound || (tabYear === settings?.currentRound && !settings?.isRoundActive && hasProg);
+
+                let btnIcon, btnLabel, btnStyle;
+                if (isThisRoundLive) {
+                    btnIcon = <FiStopCircle size={20} />;
+                    btnLabel = 'STOP ROUND';
+                    btnStyle = 'bg-red-600 hover:bg-red-500 text-white';
+                } else if (isLocked) {
+                    btnIcon = <FiLock size={20} />;
+                    btnLabel = 'ROUND LOCKED';
+                    btnStyle = 'opacity-50 cursor-not-allowed';
+                } else {
+                    btnIcon = <FiPlay size={20} />;
+                    btnLabel = 'INITIALIZE ROUND';
+                    btnStyle = '';
+                }
+
+                return (
                 <div className="flex flex-col gap-[32px] animate-in fade-in duration-500">
                     <Card className="p-[32px]">
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-[24px] mb-[48px]">
                             <div>
                                 <h2 className="text-[32px] font-semibold text-[#F9FAFB] tracking-tight">Phase 0{activeTab.slice(1)}</h2>
-                                <p className="text-[14px] text-[#7C3AED] font-medium uppercase tracking-widest mt-[8px]">Deployment Window: Year {menuItems.find(m=>m.id===activeTab).year}</p>
+                                <p className="text-[14px] text-[#7C3AED] font-medium uppercase tracking-widest mt-[8px]">Deployment Window: Year {tabYear}</p>
                             </div>
                             
                             <Button
-                                variant={settings?.currentRound === menuItems.find(m=>m.id===activeTab).year && settings?.isRoundActive ? 'secondary' : 'primary'}
-                                onClick={() => handleStartStopRound(!(settings?.currentRound === menuItems.find(m=>m.id===activeTab).year && settings?.isRoundActive))}
-                                className="w-full lg:w-auto h-[56px] px-[32px]"
+                                variant={isThisRoundLive ? 'secondary' : 'primary'}
+                                onClick={() => {
+                                    if (isLocked) {
+                                        setMsg({ type: 'error', text: 'This round is permanently locked. Use Reset Competition to start over.' });
+                                        return;
+                                    }
+                                    handleStartStopRound(!isThisRoundLive);
+                                }}
+                                className={`w-full lg:w-auto h-[48px] px-[28px] ${btnStyle}`}
                             >
-                                {settings?.currentRound === menuItems.find(m=>m.id===activeTab).year && settings?.isRoundActive ? <FiStopCircle size={22}/> : <FiPlay size={22}/>}
-                                <span className="text-[16px] uppercase tracking-wider">
-                                    {settings?.currentRound === menuItems.find(m=>m.id===activeTab).year && settings?.isRoundActive ? 'TERMINATE ROUND' : 'INITIALIZE ROUND'}
-                                </span>
+                                {btnIcon}
+                                <span className="text-[14px] uppercase tracking-wider ml-[8px]">{btnLabel}</span>
                             </Button>
                         </div>
 
@@ -606,7 +709,8 @@ const AdminDashboard = () => {
                         </div>
                     </Card>
                 </div>
-            )}
+                );
+            })()}
 
             {activeTab === 'profile' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-[32px] animate-in fade-in duration-500">
@@ -667,10 +771,26 @@ const AdminDashboard = () => {
                                     required
                                 />
                             </div>
-                            <Button type="submit" className="w-full mt-[8px]">
-                                Provision Root Access
-                            </Button>
-                        </form>
+                             <Button type="submit" className="w-full mt-[8px]">
+                                 Provision Root Access
+                             </Button>
+                         </form>
+                     </Card>
+
+                     {/* Reset Competition Card */}
+                     <Card className="text-left w-full flex flex-col relative overflow-hidden h-fit border-red-500/20 md:col-span-2">
+                        <div className="w-full mb-[24px]">
+                            <h3 className="text-[20px] font-semibold text-red-500 mb-[4px] flex items-center">
+                                <FiAlertCircle className="mr-8" /> Danger Zone
+                            </h3>
+                            <p className="text-[14px] text-[#9CA3AF]">Reset the entire competition back to Round 1. This wipes all progress but keeps teams and questions.</p>
+                        </div>
+                        <button 
+                            onClick={handleResetCompetition}
+                            className="w-full px-[32px] py-[16px] bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-[8px] text-[16px] font-bold uppercase tracking-widest transition-all border border-red-500/20 shadow-glow-sm flex justify-center items-center gap-12"
+                        >
+                            <FiActivity size={20} /> Reset Competition
+                        </button>
                      </Card>
                 </div>
             )}

@@ -27,7 +27,7 @@ router.post('/:year', verifyToken, async (req, res) => {
     const { answers } = req.body;
     const { teamId, userId, role } = req.user;
 
-    if (![1, 2, 3].includes(parseInt(year))) {
+    if (![0, 1, 2, 3, 4].includes(parseInt(year))) {
       return res.status(400).json({ error: 'Invalid year' });
     }
 
@@ -77,7 +77,7 @@ router.post('/:year', verifyToken, async (req, res) => {
 
     await Team.updateOne({ teamId }, updateData);
 
-    // Check if all roles have submitted
+    // Check if all roles have submitted for THIS team
     const updatedTeam = await Team.findOne({ teamId });
     const allSubmitted = 
       updatedTeam.gameState[yearKey].answers.cto &&
@@ -87,6 +87,31 @@ router.post('/:year', verifyToken, async (req, res) => {
     if (allSubmitted) {
       // Calculate cascade effects
       await processYearCompletion(teamId, year);
+    }
+
+    // Check if ALL teams have completed all 3 roles for this round
+    // If so, automatically mark the round as done
+    try {
+      const GameSettings = require('../models/GameSettings');
+      const allTeams = await Team.find({ teamId: { $ne: 'ADMIN-EVENT-2026' } });
+      const allTeamsComplete = allTeams.length > 0 && allTeams.every(t => {
+        const yd = t.gameState?.[yearKey];
+        if (!yd || !yd.answers) return false;
+        const ctoDone = yd.answers.cto && Object.keys(yd.answers.cto).length > 0;
+        const cfoDone = yd.answers.cfo && Object.keys(yd.answers.cfo).length > 0;
+        const pmDone = yd.answers.pm && Object.keys(yd.answers.pm).length > 0;
+        return ctoDone && cfoDone && pmDone;
+      });
+
+      if (allTeamsComplete) {
+        await GameSettings.findOneAndUpdate(
+          { id: 'global_settings' },
+          { isRoundActive: false, lastUpdated: new Date() }
+        );
+        console.log(`[AUTO] Round ${parseInt(year) + 1} auto-completed — all teams finished.`);
+      }
+    } catch (autoErr) {
+      console.error('Auto-complete check error:', autoErr);
     }
 
     res.status(201).json({
@@ -192,6 +217,38 @@ router.get('/:teamId/:year', async (req, res) => {
     }
 
     res.status(200).json(submission);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/submissions/disqualify/:year
+ * Disqualify a user for cheating
+ */
+router.post('/disqualify/:year', verifyToken, async (req, res) => {
+  try {
+    const { year } = req.params;
+    const { reason } = req.body;
+    const { teamId, role } = req.user;
+
+    const team = await Team.findOne({ teamId });
+    if (!team) return res.status(404).json({ error: 'Team not found' });
+
+    const yearKey = `year${year}`;
+    if (!team.gameState[yearKey]) return res.status(400).json({ error: 'Invalid year' });
+
+    const updateData = {
+      [`gameState.${yearKey}.scores.${role}`]: 0,
+      [`gameState.${yearKey}.answers.${role}`]: { disqualified: true },
+      [`gameState.${yearKey}.submittedAt`]: new Date(),
+      $inc: { 'fraudFlags.tabSwitches': 1 },
+      $push: { 'gameState.violations': { role, year, reason: reason || 'Cheating detected' } }
+    };
+
+    await Team.updateOne({ teamId }, updateData);
+
+    res.status(200).json({ success: true, message: 'User disqualified for this round' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

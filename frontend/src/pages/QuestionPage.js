@@ -5,8 +5,8 @@ import LockdownMode from '../components/LockdownMode';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { useGameStore } from '../utils/store';
-import { questionsAPI, submissionsAPI, adminAPI } from '../utils/api';
-import { FiClock, FiAlertCircle, FiChevronRight, FiChevronLeft, FiCheckCircle, FiLoader, FiZap, FiLock } from 'react-icons/fi';
+import { questionsAPI, submissionsAPI, adminAPI, authAPI } from '../utils/api';
+import { FiClock, FiAlertCircle, FiChevronRight, FiChevronLeft, FiCheckCircle, FiLoader, FiZap, FiLock, FiBook, FiX } from 'react-icons/fi';
 
 const QuestionPage = () => {
   const { year } = useParams();
@@ -15,30 +15,52 @@ const QuestionPage = () => {
 
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(480); // 8 minutes
+  const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [tabSwitchWarnings, setTabSwitchWarnings] = useState(0);
   const [isAuthorized, setIsAuthorized] = useState(true);
+  const [isHandbookOpen, setIsHandbookOpen] = useState(false);
 
   useEffect(() => {
+    let intervalId;
+
     const validateAndLoad = async () => {
       try {
-        // 1. Check global round authorization
-        const settingsRes = await adminAPI.getSettings();
+        // 1. Check global round authorization and team status
+        const [settingsRes, teamRes] = await Promise.all([
+            adminAPI.getSettings(),
+            authAPI.getTeam(teamId)
+        ]);
         const settings = settingsRes.data;
+        const teamData = teamRes.data;
         
         if (!settings.isRoundActive || settings.currentRound !== parseInt(year)) {
           setIsAuthorized(false);
           setLoading(false);
+          // If they were actively taking it and it was stopped, force them out
+          if (questions.length > 0) {
+              navigate('/profile');
+          }
           return;
         }
 
-        // 2. Load questions
-        const response = await questionsAPI.getByYear(year, role);
-        setQuestions(response.data.questions);
-        setCurrentQuestions(response.data.questions);
+        // 1.5 Check if user already submitted
+        const hasCompleted = Object.keys(teamData?.gameState?.[`year${year}`]?.answers?.[role?.toLowerCase()] || {}).length > 0;
+        if (hasCompleted) {
+            setIsAuthorized(false);
+            setLoading(false);
+            if (questions.length > 0) navigate('/profile');
+            return;
+        }
+
+        // 2. Load questions (only once)
+        if (questions.length === 0) {
+            const response = await questionsAPI.getByYear(year, role);
+            setQuestions(response.data.questions);
+            setCurrentQuestions(response.data.questions);
+        }
         setLoading(false);
       } catch (err) {
         setError('Communications Link Failure. Verify AWS Connection.');
@@ -48,8 +70,13 @@ const QuestionPage = () => {
 
     if (year && role) {
       validateAndLoad();
+      intervalId = setInterval(validateAndLoad, 5000); // Check every 5 seconds
     }
-  }, [year, role, setCurrentQuestions]);
+
+    return () => {
+        if (intervalId) clearInterval(intervalId);
+    };
+  }, [year, role, teamId, navigate, questions.length, setCurrentQuestions]);
 
   // Timer logic
   useEffect(() => {
@@ -66,9 +93,22 @@ const QuestionPage = () => {
     }
   }, [timeLeft]);
 
-  const handleTabSwitch = (count) => {
+  const handleDisqualify = async (reason) => {
+    if (submitting) return;
+    setSubmitting(true);
+    setError('Disqualified: ' + reason);
+    try {
+      await submissionsAPI.disqualify(year, reason);
+      setTimeout(() => navigate('/profile'), 2000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Disqualification Uplink Failed. Retrying...');
+      setSubmitting(false);
+    }
+  };
+
+  const handleTabSwitch = (count, reason) => {
     setTabSwitchWarnings(count);
-    if (count >= 3) handleSubmit(); 
+    if (count >= 3) handleDisqualify(reason || 'Security Violation'); 
   };
 
   const handleAnswerChange = (questionId, answer) => {
@@ -90,8 +130,8 @@ const QuestionPage = () => {
     setError('');
 
     try {
-      await submissionsAPI.submit(year, answers, 480 - timeLeft);
-      setTimeout(() => navigate(`/year-end-report/${year}`), 1500);
+      await submissionsAPI.submit(year, answers, 1200 - timeLeft);
+      setTimeout(() => navigate('/profile'), 1500);
     } catch (err) {
       setError(err.response?.data?.error || 'Uplink Failed. Retrying...');
       setSubmitting(false);
@@ -130,17 +170,20 @@ const QuestionPage = () => {
   );
 
   if (error && questions.length === 0) return (
-    <div className="min-h-screen bg-brand-bg flex flex-col items-center justify-center p-24">
-      <Card className="p-48 max-w-md w-full text-center space-y-32 border-red-500/20">
+    <div className="min-h-screen bg-brand-bg flex items-center justify-center p-24 font-sans">
+      <Card className="p-48 max-w-md w-full text-center space-y-32 border-red-500/20 bg-brand-surface/40 backdrop-blur-xl">
         <div className="w-80 h-80 bg-red-500/10 rounded-3xl flex items-center justify-center text-red-500 mx-auto animate-pulse">
-            <FiAlertCircle size={40} />
+            <FiAlertTriangle size={40} />
         </div>
         <div className="space-y-12">
-            <h2 className="text-24 font-semibold tracking-tight text-brand-text-primary">Communication Servered</h2>
-            <p className="text-14 text-brand-text-muted leading-relaxed">{error}</p>
+            <h2 className="text-24 font-bold tracking-tight text-brand-text-primary uppercase">Communication Severed</h2>
+            <p className="text-14 text-brand-text-muted leading-relaxed">The secure link to AWS Command has been interrupted. Re-establish handshake to continue mission.</p>
+            <div className="bg-red-500/5 p-12 rounded border border-red-500/10 mt-16">
+                <p className="text-11 font-mono text-red-400 uppercase">Error: {error}</p>
+            </div>
         </div>
-        <Button onClick={() => window.location.reload()} className="w-full bg-brand-surface border-brand-border text-brand-text-primary hover:bg-brand-bg">
-            Retry Handshake
+        <Button onClick={() => window.location.reload()} className="w-full h-48 font-bold uppercase tracking-widest bg-brand-primary shadow-lg shadow-brand-primary/20">
+            Re-establish Handshake
         </Button>
       </Card>
     </div>
@@ -171,6 +214,15 @@ const QuestionPage = () => {
                 </div>
 
                 <div className="flex items-center space-x-32">
+                    {/* Handbook Toggle */}
+                    <button 
+                        onClick={() => setIsHandbookOpen(!isHandbookOpen)}
+                        className={`px-16 py-8 rounded-lg flex items-center space-x-8 font-bold text-14 transition-all ${isHandbookOpen ? 'bg-brand-primary text-white' : 'bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20'}`}
+                    >
+                        <FiBook size={18} />
+                        <span>Handbook</span>
+                    </button>
+
                     {/* Session Timer */}
                     <div className={`flex items-center space-x-12 px-20 py-8 rounded-full border transition-all ${timeLeft < 60 ? 'bg-red-500/10 border-red-500/50 text-red-500 animate-pulse' : 'bg-brand-surface border-brand-border'}`}>
                         <FiClock size={16} />
@@ -188,143 +240,151 @@ const QuestionPage = () => {
             </div>
         </header>
 
-        <main className="relative z-10 max-w-5xl mx-auto px-24 py-48">
-            {/* Progress Tracking */}
-            <div className="mb-48 space-y-16">
-                <div className="flex justify-between items-end">
-                    <div>
-                        <span className="text-10 font-bold text-brand-primary uppercase tracking-[0.3em]">Decision Sequence</span>
-                        <h2 className="text-32 font-semibold tracking-tighter leading-none mt-4">
-                            Case Study {currentIndex + 1} <span className="text-brand-text-muted">/ {questions.length}</span>
-                        </h2>
-                    </div>
-                    <div className="text-right">
-                        <span className="text-10 font-bold text-brand-text-muted uppercase tracking-widest leading-none">Authorization Rank</span>
-                        <p className="text-14 text-brand-text-primary font-bold uppercase">{role === 'cto' ? 'Cloud Architect' : role === 'cfo' ? 'Finance' : 'Growth Lead'}</p>
-                    </div>
-                </div>
-                <div className="h-4 bg-brand-surface rounded-full overflow-hidden border border-brand-border">
-                    <div 
-                        className="h-full bg-brand-primary shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all duration-700" 
-                        style={{width: `${((currentIndex + 1)/questions.length)*100}%`}}
-                    ></div>
-                </div>
-            </div>
-
-            {/* Combat Scenario Card */}
-            {currentQuestion && (
-                <div className="space-y-32 animate-in fade-in slide-in-from-bottom-8 duration-500">
-                    <Card className="p-40 border-brand-primary/10 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-128 h-128 bg-brand-primary/5 -mr-64 -mt-64 rounded-full blur-3xl"></div>
-                        
-                        <div className="space-y-24 relative z-10">
-                            <div className="space-y-16">
-                                <div className="flex items-center space-x-8 text-brand-primary">
-                                    <div className="w-8 h-1 bg-brand-primary"></div>
-                                    <span className="text-10 font-bold uppercase tracking-[0.2em]">Briefing Narrative</span>
-                                </div>
-                                <p className="text-20 text-brand-text-muted leading-relaxed font-medium italic">
-                                    "{currentQuestion.scenario}"
-                                </p>
-                            </div>
-
-                            <h3 className="text-32 font-semibold text-brand-text-primary tracking-tight leading-tight pt-16 border-t border-brand-border/50">
-                                {currentQuestion.question}
-                            </h3>
-                        </div>
-                    </Card>
-
-                    {/* Strategic Responses */}
-                    <div className="grid grid-cols-1 gap-16">
-                        {currentQuestion.options.map((opt) => (
-                            <button 
-                                key={opt.optionId}
-                                onClick={() => handleAnswerChange(currentQuestion.questionId, opt.value)}
-                                className={`group flex items-center space-x-24 p-24 rounded-2xl border transition-all text-left relative overflow-hidden backdrop-blur-sm ${
-                                    answers[currentQuestion.questionId] === opt.value
-                                    ? 'bg-brand-primary/10 border-brand-primary ring-1 ring-brand-primary/50'
-                                    : 'bg-brand-surface/40 border-brand-border hover:border-brand-primary/30'
-                                }`}
-                            >
-                                {/* Selection Glow */}
-                                {answers[currentQuestion.questionId] === opt.value && (
-                                    <div className="absolute left-0 top-0 w-4 h-full bg-brand-primary"></div>
-                                )}
-
-                                <div className={`flex-shrink-0 w-48 h-48 rounded-xl flex items-center justify-center font-bold text-18 font-mono border transition-all ${
-                                    answers[currentQuestion.questionId] === opt.value
-                                    ? 'bg-brand-primary text-white border-brand-primary shadow-[0_0_20px_rgba(37,99,235,0.3)]'
-                                    : 'bg-brand-bg text-brand-text-muted border-brand-border group-hover:border-brand-primary/30'
-                                }`}>
-                                    {opt.optionId}
-                                </div>
-
-                                <div className="flex-1 space-y-4">
-                                    <p className={`text-18 font-medium transition-colors ${
-                                        answers[currentQuestion.questionId] === opt.value ? 'text-brand-text-primary' : 'text-brand-text-muted group-hover:text-brand-text-primary'
-                                    }`}>
-                                        {opt.text}
-                                    </p>
-                                </div>
-
-                                {answers[currentQuestion.questionId] === opt.value && (
-                                    <div className="flex-shrink-0 text-brand-primary">
-                                        <FiCheckCircle size={24} className="animate-in zoom-in duration-300" />
-                                    </div>
-                                )}
-                            </button>
-                        ))}
+        <main className={`relative z-10 mx-auto px-24 py-48 flex gap-32 transition-all duration-300 ${isHandbookOpen ? 'max-w-[1600px]' : 'max-w-7xl'}`}>
+            {/* Left Navigation Panel */}
+            <aside className="w-[280px] flex-shrink-0 space-y-24">
+                <div className="bg-brand-surface/40 border border-brand-border rounded-xl p-24">
+                    <h3 className="text-14 font-bold text-brand-text-muted uppercase tracking-widest mb-16 border-b border-brand-border pb-12">Nav Panel</h3>
+                    <div className="flex flex-col gap-8">
+                        {questions.map((q, idx) => {
+                            const isAnswered = answers[q.questionId] !== undefined;
+                            const isActive = idx === currentIndex;
+                            return (
+                                <button
+                                    key={q.questionId}
+                                    onClick={() => setCurrentIndex(idx)}
+                                    className={`flex items-center justify-between p-12 rounded-lg transition-all border ${
+                                        isActive ? 'bg-brand-primary/20 border-brand-primary text-brand-text-primary' :
+                                        isAnswered ? 'bg-brand-surface border-emerald-500/30 text-brand-text-primary' :
+                                        'bg-brand-bg border-brand-border text-brand-text-muted hover:border-brand-primary/30'
+                                    }`}
+                                >
+                                    <span className="font-bold">Question {idx + 1}</span>
+                                    {isAnswered && <FiCheckCircle className="text-emerald-400" />}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
-            )}
 
-            {/* Mission Controls */}
-            <div className="mt-64 flex flex-col md:flex-row items-center gap-24 font-sans">
-                <button
-                    onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
-                    disabled={currentIndex === 0}
-                    className="w-full md:w-auto px-32 py-16 text-12 font-bold uppercase tracking-widest text-brand-text-muted hover:text-white transition-colors disabled:opacity-20 disabled:cursor-not-allowed flex items-center space-x-8"
-                >
-                    <FiChevronLeft />
-                    <span>Previous Response</span>
-                </button>
-
-                <div className="flex-1">
+                {/* Status and Submit */}
+                <div className="bg-brand-surface/40 border border-brand-border rounded-xl p-24 space-y-16">
+                    <div className="flex justify-between items-center text-12 font-bold uppercase tracking-widest text-brand-text-muted">
+                        <span>Answered</span>
+                        <span>{Object.keys(answers).length} / {questions.length}</span>
+                    </div>
                     {error && (
-                        <div className="bg-red-500/10 border border-red-500/20 text-red-400 py-12 px-24 rounded-full flex items-center space-x-12 text-12 font-bold justify-center animate-shake">
-                            <FiAlertCircle size={14} className="flex-shrink-0" />
-                            <span>SYSTEM ALERT: {error}</span>
+                        <div className="text-red-400 text-12 font-bold p-8 bg-red-500/10 rounded animate-pulse text-center">
+                            {error}
                         </div>
                     )}
-                </div>
-
-                {currentIndex === questions.length - 1 ? (
                     <Button
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className={`w-full md:w-[280px] h-64 ${submitting ? 'opacity-50' : 'bg-emerald-600 hover:bg-emerald-500 ring-emerald-500/30'}`}
+                        className={`w-full h-48 ${submitting ? 'opacity-50' : 'bg-emerald-600 hover:bg-emerald-500 ring-emerald-500/30'}`}
                     >
-                        {submitting ? (
-                            <FiLoader className="animate-spin" size={20} />
-                        ) : (
-                            <div className="flex items-center space-x-12">
-                                <span className="text-14 uppercase font-black tracking-widest">Commit Strategic Data</span>
-                                <FiZap size={18} />
+                        {submitting ? <FiLoader className="animate-spin mx-auto" /> : 'Submit Responses'}
+                    </Button>
+                </div>
+            </aside>
+
+            {/* Active Question Display */}
+            <div className="flex-1 min-w-0">
+                {/* Combat Scenario Card */}
+                {currentQuestion && (
+                    <div className="space-y-32 animate-in fade-in slide-in-from-bottom-8 duration-500">
+                        <Card className="p-40 border-brand-primary/10 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-128 h-128 bg-brand-primary/5 -mr-64 -mt-64 rounded-full blur-3xl"></div>
+                            
+                            <div className="space-y-24 relative z-10">
+                                    <div className="flex items-center space-x-8 text-brand-primary">
+                                        <div className="w-8 h-1 bg-brand-primary"></div>
+                                        <span className="text-10 font-bold uppercase tracking-[0.2em]">Briefing Narrative</span>
+                                    </div>
+                                    <p className="text-20 text-brand-text-muted leading-relaxed font-medium italic">
+                                        "{currentQuestion.scenario}"
+                                    </p>
+                                </div>
+
+                                <h3 className="text-32 font-semibold text-brand-text-primary tracking-tight leading-tight pt-16 border-t border-brand-border/50">
+                                    {currentQuestion.question}
+                                </h3>
                             </div>
-                        )}
-                    </Button>
-                ) : (
-                    <Button
-                        onClick={() => setCurrentIndex(Math.min(questions.length - 1, currentIndex + 1))}
-                        className="w-full md:w-[280px] h-64"
-                    >
-                        <div className="flex items-center space-x-12">
-                            <span className="text-14 uppercase font-black tracking-widest">Continue Evaluation</span>
-                            <FiChevronRight size={20} />
+                        </Card>
+
+                        {/* Strategic Responses */}
+                        <div className="grid grid-cols-1 gap-16">
+                            {currentQuestion.options.map((opt) => (
+                                <button 
+                                    key={opt.optionId}
+                                    onClick={() => handleAnswerChange(currentQuestion.questionId, opt.value)}
+                                    className={`group flex items-center space-x-24 p-24 rounded-2xl border transition-all text-left relative overflow-hidden backdrop-blur-sm ${
+                                        answers[currentQuestion.questionId] === opt.value
+                                        ? 'bg-brand-primary/10 border-brand-primary ring-1 ring-brand-primary/50'
+                                        : 'bg-brand-surface/40 border-brand-border hover:border-brand-primary/30'
+                                    }`}
+                                >
+                                    {/* Selection Glow */}
+                                    {answers[currentQuestion.questionId] === opt.value && (
+                                        <div className="absolute left-0 top-0 w-4 h-full bg-brand-primary"></div>
+                                    )}
+
+                                    <div className={`flex-shrink-0 w-48 h-48 rounded-xl flex items-center justify-center font-bold text-18 font-mono border transition-all ${
+                                        answers[currentQuestion.questionId] === opt.value
+                                        ? 'bg-brand-primary text-white border-brand-primary shadow-[0_0_20px_rgba(37,99,235,0.3)]'
+                                        : 'bg-brand-bg text-brand-text-muted border-brand-border group-hover:border-brand-primary/30'
+                                    }`}>
+                                        {opt.optionId}
+                                    </div>
+
+                                    <div className="flex-1 space-y-4">
+                                        <p className={`text-18 font-medium transition-colors ${
+                                            answers[currentQuestion.questionId] === opt.value ? 'text-brand-text-primary' : 'text-brand-text-muted group-hover:text-brand-text-primary'
+                                        }`}>
+                                            {opt.text}
+                                        </p>
+                                    </div>
+
+                                    {answers[currentQuestion.questionId] === opt.value && (
+                                        <div className="flex-shrink-0 text-brand-primary">
+                                            <FiCheckCircle size={24} className="animate-in zoom-in duration-300" />
+                                        </div>
+                                    )}
+                                </button>
+                            ))}
                         </div>
-                    </Button>
+                    </div>
                 )}
             </div>
+
+            {/* Handbook Right Panel */}
+            {isHandbookOpen && (
+                <aside className="w-[500px] h-[calc(100vh-200px)] flex-shrink-0 bg-brand-surface/40 border border-brand-border rounded-xl overflow-hidden animate-in slide-in-from-right-8 duration-300 relative flex flex-col sticky top-24">
+                    <div className="px-16 py-12 border-b border-brand-border bg-brand-surface flex justify-between items-center">
+                        <span className="font-bold text-12 uppercase tracking-widest text-brand-text-primary">Strategic Handbook</span>
+                        <div className="flex items-center gap-8">
+                            <a 
+                                href="/handbook.pdf" 
+                                download 
+                                className="p-4 rounded-lg hover:bg-brand-primary/10 text-brand-text-muted hover:text-brand-primary transition-colors"
+                                title="Download PDF"
+                            >
+                                <FiBook size={18} />
+                            </a>
+                            <button onClick={() => setIsHandbookOpen(false)} className="p-4 rounded-lg hover:bg-red-500/10 text-brand-text-muted hover:text-red-400 transition-colors">
+                                <FiX size={18} />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex-1">
+                        <iframe 
+                            src="/handbook.pdf" 
+                            className="w-full h-full border-none"
+                            title="Handbook PDF"
+                        />
+                    </div>
+                </aside>
+            )}
         </main>
     </div>
   );

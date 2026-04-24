@@ -196,7 +196,11 @@ router.get('/team/:teamId', async (req, res) => {
       })),
       college: team.college,
       department: team.department,
-      createdAt: team.createdAt
+      createdAt: team.createdAt,
+      gameState: team.gameState,
+      eventStatus: team.eventStatus,
+      currentYear: team.currentYear,
+      points: team.points
     });
   } catch (err) {
     console.error('Error fetching team data:', err);

@@ -88,7 +88,13 @@ const teamSchema = new mongoose.Schema({
     year1: yearStateSchema,
     year2: yearStateSchema,
     year3: yearStateSchema,
-    year4: yearStateSchema
+    year4: yearStateSchema,
+    violations: [{
+      role: String,
+      year: Number,
+      reason: String,
+      timestamp: { type: Date, default: Date.now }
+    }]
   },
   finalScore: {
     cumulativeProfit: Number,

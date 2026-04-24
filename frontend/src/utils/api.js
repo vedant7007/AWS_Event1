@@ -33,7 +33,8 @@ export const questionsAPI = {
 export const submissionsAPI = {
   submit: (year, answers, timeSpent) => 
     apiClient.post(`/submissions/${year}`, { answers, timeSpent }),
-  get: (teamId, year) => apiClient.get(`/submissions/${teamId}/${year}`)
+  get: (teamId, year) => apiClient.get(`/submissions/${teamId}/${year}`),
+  disqualify: (year, reason) => apiClient.post(`/submissions/disqualify/${year}`, { reason })
 };
 
 export const leaderboardAPI = {
