@@ -9,10 +9,10 @@ const Team = require('../models/Team');
 router.get('/', async (req, res) => {
   try {
     const teams = await Team.find(
-      { eventStatus: { $in: ['in-progress', 'completed'] } },
-      'teamId teamName gameState finalScore'
+      { eventStatus: { $in: ['registered', 'in-progress', 'completed'] }, teamId: { $ne: 'ADMIN-EVENT-2026' } },
+      'teamId teamName gameState finalScore points createdAt'
     )
-      .sort({ 'finalScore.rank': 1 })
+      .sort({ 'finalScore.cumulativeProfit': -1, createdAt: 1 })
       .limit(100);
 
     const leaderboard = teams.map((team, idx) => ({

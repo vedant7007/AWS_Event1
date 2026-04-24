@@ -110,11 +110,16 @@ router.post('/login', async (req, res) => {
       return res.status(404).json({ error: 'Team not found. Check your Team ID.' });
     }
 
-    // Find member by name (case-insensitive) and role (case-insensitive)
-    const member = team.members.find(m => 
-      m.name.toLowerCase() === memberName.toLowerCase() && 
-      m.role.toLowerCase() === role.toLowerCase()
-    );
+    // For normal teams, require role match. For Admin, bypass the dropdown role requirement.
+    let member;
+    if (teamId === 'ADMIN-EVENT-2026') {
+      member = team.members.find(m => m.name.toLowerCase() === memberName.toLowerCase());
+    } else {
+      member = team.members.find(m => 
+        m.name.toLowerCase() === memberName.toLowerCase() && 
+        m.role.toLowerCase() === role.toLowerCase()
+      );
+    }
 
     if (!member) {
       return res.status(401).json({ 

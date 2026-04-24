@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
+import Card from '../components/Card';
 import { leaderboardAPI } from '../utils/api';
+import { FiTrendingUp, FiActivity, FiUsers, FiAward, FiZap, FiTarget, FiSearch, FiRefreshCw } from 'react-icons/fi';
 
 const LeaderboardPage = () => {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -14,83 +16,155 @@ const LeaderboardPage = () => {
         setLeaderboard(response.data.leaderboard);
         setLoading(false);
       } catch (err) {
-        setError('Failed to load leaderboard');
+        setError('Communications Uplink Failed: Unable to synchronize rankings.');
         setLoading(false);
       }
     };
 
     loadLeaderboard();
-    // Refresh every 5 seconds
     const interval = setInterval(loadLeaderboard, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  if (loading) return <div className="text-center p-8">Loading leaderboard...</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-brand-bg flex items-center justify-center p-24">
+      <div className="flex flex-col items-center space-y-24">
+        <div className="relative">
+            <div className="absolute inset-0 bg-brand-primary/20 blur-3xl rounded-full scale-150 animate-pulse"></div>
+            <FiZap className="relative text-brand-primary animate-bounce" size={64} />
+        </div>
+        <p className="text-brand-text-muted font-bold uppercase tracking-[0.4em] text-12">Synchronizing Tactical Data...</p>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header title="Live Leaderboard" />
+    <div className="min-h-screen bg-brand-bg text-brand-text-primary selection:bg-brand-primary/30 relative overflow-hidden font-sans">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-brand-primary/5 rounded-full -mr-128 -mt-128 blur-[150px] -z-10"></div>
+      
+      <Header title="Strategic Operations Leaderboard" showLeaderboard={false} />
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-            {error}
-          </div>
-        )}
-
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-              <tr>
-                <th className="px-6 py-4 text-left">Rank</th>
-                <th className="px-6 py-4 text-left">Team</th>
-                <th className="px-6 py-4 text-left">Status</th>
-                <th className="px-6 py-4 text-right">Year 1</th>
-                <th className="px-6 py-4 text-right">Year 2</th>
-                <th className="px-6 py-4 text-right">Year 3</th>
-                <th className="px-6 py-4 text-right font-bold">Total Profit</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {leaderboard.map((team, idx) => (
-                <tr key={team.teamId} className={idx < 3 ? 'bg-yellow-50' : ''}>
-                  <td className="px-6 py-4">
-                    {idx === 0 && '🥇'}
-                    {idx === 1 && '🥈'}
-                    {idx === 2 && '🥉'}
-                    {idx > 2 && <span className="font-bold">{team.rank}</span>}
-                  </td>
-                  <td className="px-6 py-4 font-semibold">{team.teamName}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                      team.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      team.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {team.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right font-mono text-sm">
-                    ${team.year1Profit?.toLocaleString() || '—'}
-                  </td>
-                  <td className="px-6 py-4 text-right font-mono text-sm">
-                    ${team.year2Profit?.toLocaleString() || '—'}
-                  </td>
-                  <td className="px-6 py-4 text-right font-mono text-sm">
-                    ${team.year3Profit?.toLocaleString() || '—'}
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold font-mono text-lg">
-                    ${team.cumulativeProfit?.toLocaleString() || '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <main className="max-w-7xl mx-auto px-24 py-48 flex-1 w-full relative z-10">
+        
+        {/* Status Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-24 mb-48">
+            <div className="space-y-16">
+                <div className="flex items-center space-x-12">
+                    <div className="h-1 w-24 bg-brand-primary"></div>
+                    <span className="text-12 font-bold uppercase tracking-[0.3em] text-brand-primary">Live Mission Stream</span>
+                </div>
+                <h1 className="text-48 font-semibold tracking-tighter leading-none">
+                    Unit <span className="text-brand-primary">Standings</span>.
+                </h1>
+            </div>
+            
+            <div className="flex items-center space-x-16">
+                <div className="px-16 py-8 bg-brand-surface rounded-xl border border-brand-border flex items-center space-x-12 shadow-lg">
+                    <div className="w-8 h-8 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                    <span className="text-12 font-black uppercase tracking-widest text-brand-text-muted">Live Uplink Active</span>
+                </div>
+                <button 
+                    onClick={() => window.location.reload()}
+                    className="p-10 bg-brand-surface rounded-xl border border-brand-border text-brand-text-muted hover:text-brand-primary hover:border-brand-primary/50 transition-all shadow-lg"
+                >
+                    <FiRefreshCw size={20} />
+                </button>
+            </div>
         </div>
 
+        {error && (
+            <Card className="border-red-500/30 bg-red-500/5 p-24 mb-32 flex items-center space-x-16 text-red-400">
+                <FiActivity size={24} />
+                <span className="font-bold">{error}</span>
+            </Card>
+        )}
+
+        <Card className="overflow-hidden border-brand-border shadow-2xl">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-brand-surface/80 border-b border-brand-border">
+                  <th className="px-32 py-24 text-left">
+                    <div className="flex items-center space-x-12">
+                      <FiAward className="text-brand-primary" size={16} />
+                      <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">Ranking</span>
+                    </div>
+                  </th>
+                  <th className="px-32 py-24 text-left">
+                    <div className="flex items-center space-x-12">
+                      <FiUsers className="text-emerald-400" size={16} />
+                      <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">Unit Designation</span>
+                    </div>
+                  </th>
+                  <th className="px-32 py-24 text-left">
+                    <div className="flex items-center space-x-12">
+                      <FiTarget className="text-purple-400" size={16} />
+                      <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">Deployment Status</span>
+                    </div>
+                  </th>
+                  {[0, 1, 2, 3, 4].map(y => (
+                    <th key={y} className="px-16 py-24 text-right">
+                       <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">Q{y}</span>
+                    </th>
+                  ))}
+                  <th className="px-32 py-24 text-right">
+                    <div className="flex items-center justify-end space-x-12">
+                      <FiTrendingUp className="text-brand-primary" size={16} />
+                      <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">Consolidated P/L</span>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-border/30">
+                {leaderboard.map((team, idx) => (
+                  <tr key={team.teamId} className={`group transition-all ${idx < 3 ? 'bg-brand-primary/[0.03]' : 'hover:bg-brand-surface/50'}`}>
+                    <td className="px-32 py-24">
+                       <div className="flex items-center space-x-16">
+                         {idx === 0 && <div className="p-8 bg-yellow-400/20 rounded-lg text-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.1)]"><FiAward size={24} /></div>}
+                         {idx === 1 && <div className="p-8 bg-slate-400/20 rounded-lg text-slate-400"><FiAward size={20} /></div>}
+                         {idx === 2 && <div className="p-8 bg-amber-600/20 rounded-lg text-amber-600"><FiAward size={18} /></div>}
+                         <span className={`text-24 font-bold font-mono tracking-tighter ${idx < 3 ? 'text-brand-text-primary' : 'text-brand-text-muted/50'}`}>
+                            {idx + 1}
+                         </span>
+                       </div>
+                    </td>
+                    <td className="px-32 py-24">
+                       <span className="text-18 font-semibold text-brand-text-primary group-hover:text-brand-primary transition-colors">{team.teamName}</span>
+                    </td>
+                    <td className="px-32 py-24">
+                      <span className={`px-12 py-4 rounded-full text-10 font-black uppercase tracking-widest inline-flex items-center space-x-8 border ${
+                        team.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                        team.status === 'in-progress' ? 'bg-brand-primary/10 text-brand-primary border-brand-primary/20' :
+                        'bg-brand-surface text-brand-text-muted border-brand-border'
+                      }`}>
+                        <div className={`w-6 h-6 rounded-full ${team.status === 'completed' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-brand-primary animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]'}`} />
+                        <span>{team.status}</span>
+                      </span>
+                    </td>
+                    {[0, 1, 2, 3, 4].map(y => (
+                      <td key={y} className="px-16 py-24 text-right">
+                         <span className="font-mono font-bold text-brand-text-muted text-14">
+                            ${team[`year${y}Profit`]?.toLocaleString() || '—'}
+                         </span>
+                      </td>
+                    ))}
+                    <td className="px-32 py-24 text-right">
+                      <span className={`text-28 font-bold font-mono tracking-tighter ${idx === 0 ? 'text-brand-primary' : 'text-brand-text-primary'}`}>
+                        ${team.cumulativeProfit?.toLocaleString() || '—'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
         {leaderboard.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No teams have started yet.</p>
+          <div className="flex flex-col items-center py-64 opacity-20">
+            <FiUsers size={80} className="mb-24" />
+            <p className="text-24 font-bold uppercase tracking-[0.3em] text-center">Awaiting Unit Deployment...</p>
           </div>
         )}
       </main>

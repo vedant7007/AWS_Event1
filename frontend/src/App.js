@@ -54,7 +54,7 @@ function App() {
 
         {/* Admin routes */}
         <Route
-          path="/admin"
+          path="/admin/:tab?"
           element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>}
         />
 

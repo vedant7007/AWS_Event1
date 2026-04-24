@@ -1,5 +1,31 @@
 const mongoose = require('mongoose');
 
+const yearStateSchema = {
+  answers: {
+    cto: { type: mongoose.Schema.Types.Mixed, default: {} },
+    cfo: { type: mongoose.Schema.Types.Mixed, default: {} },
+    pm: { type: mongoose.Schema.Types.Mixed, default: {} }
+  },
+  scores: {
+    cto: { type: Number, default: 0 },
+    cfo: { type: Number, default: 0 },
+    pm: { type: Number, default: 0 },
+    roundAvg: { type: Number, default: 0 }
+  },
+  companyState: {
+    monthlyBill: { type: Number, default: 0 },
+    monthlyRevenue: { type: Number, default: 0 },
+    runwayMonths: { type: Number, default: 0 },
+    cumulativeProfit: { type: Number, default: 0 }
+  },
+  marketEvent: {
+    name: String,
+    penalty: Number,
+    description: String
+  },
+  submittedAt: Date
+};
+
 const teamSchema = new mongoose.Schema({
   teamId: {
     type: String,
@@ -23,7 +49,7 @@ const teamSchema = new mongoose.Schema({
       name: String,
       role: {
         type: String,
-        enum: ['cto', 'cfo', 'pm'],
+        enum: ['cto', 'cfo', 'pm', 'admin'],
         required: true
       },
       password: String,
@@ -43,9 +69,13 @@ const teamSchema = new mongoose.Schema({
   },
   currentYear: {
     type: Number,
-    default: 1,
-    min: 1,
-    max: 3
+    default: 0,
+    min: 0,
+    max: 4
+  },
+  points: {
+    type: Number,
+    default: 0
   },
   fraudFlags: {
     tabSwitches: { type: Number, default: 0 },
@@ -54,81 +84,11 @@ const teamSchema = new mongoose.Schema({
     lastFlaggedAt: Date
   },
   gameState: {
-    year1: {
-      answers: {
-        cto: {},
-        cfo: {},
-        pm: {}
-      },
-      scores: {
-        cto: Number,
-        cfo: Number,
-        pm: Number,
-        roundAvg: Number
-      },
-      companyState: {
-        monthlyBill: Number,
-        monthlyRevenue: Number,
-        runwayMonths: Number,
-        cumulativeProfit: Number
-      },
-      marketEvent: {
-        name: String,
-        penalty: Number,
-        description: String
-      },
-      submittedAt: Date
-    },
-    year2: {
-      answers: {
-        cto: {},
-        cfo: {},
-        pm: {}
-      },
-      scores: {
-        cto: Number,
-        cfo: Number,
-        pm: Number,
-        roundAvg: Number
-      },
-      companyState: {
-        monthlyBill: Number,
-        monthlyRevenue: Number,
-        runwayMonths: Number,
-        cumulativeProfit: Number
-      },
-      marketEvent: {
-        name: String,
-        penalty: Number,
-        description: String
-      },
-      submittedAt: Date
-    },
-    year3: {
-      answers: {
-        cto: {},
-        cfo: {},
-        pm: {}
-      },
-      scores: {
-        cto: Number,
-        cfo: Number,
-        pm: Number,
-        roundAvg: Number
-      },
-      companyState: {
-        monthlyBill: Number,
-        monthlyRevenue: Number,
-        runwayMonths: Number,
-        cumulativeProfit: Number
-      },
-      marketEvent: {
-        name: String,
-        penalty: Number,
-        description: String
-      },
-      submittedAt: Date
-    }
+    year0: yearStateSchema,
+    year1: yearStateSchema,
+    year2: yearStateSchema,
+    year3: yearStateSchema,
+    year4: yearStateSchema
   },
   finalScore: {
     cumulativeProfit: Number,
@@ -139,6 +99,7 @@ const teamSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Index for fast leaderboard queries
+teamSchema.index({ points: -1 });
 teamSchema.index({ 'finalScore.cumulativeProfit': -1 });
 teamSchema.index({ 'finalScore.rank': 1 });
 teamSchema.index({ eventStatus: 1, currentYear: 1 });

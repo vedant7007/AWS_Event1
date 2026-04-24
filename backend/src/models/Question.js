@@ -10,7 +10,7 @@ const questionSchema = new mongoose.Schema({
   year: {
     type: Number,
     required: true,
-    enum: [1, 2, 3],
+    enum: [0, 1, 2, 3, 4],
     index: true
   },
   role: {

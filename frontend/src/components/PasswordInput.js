@@ -12,12 +12,13 @@ export default function PasswordInput({
   showStrength = false,
   required = false,
   name = 'password',
-  strengthMessage = ''
+  strengthMessage = '',
+  className = ''
 }) {
   const [showPassword, setShowPassword] = React.useState(false);
 
   return (
-    <div className="mb-4">
+    <div className="w-full">
       <div className="relative">
         <input
           type={showPassword ? 'text' : 'password'}
@@ -26,13 +27,13 @@ export default function PasswordInput({
           placeholder={placeholder}
           required={required}
           name={name}
-          className="w-full px-4 py-2 pr-12 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 transition"
+          className={`w-full bg-[#0F172A] border border-[#1F2937] rounded-[10px] px-[14px] py-[12px] text-[14px] text-[#F9FAFB] focus:border-[#7C3AED] focus:shadow-glow focus:outline-none transition-all placeholder:text-[#9CA3AF] ${className}`}
         />
         <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 hover:text-gray-800 focus:outline-none"
-          title={showPassword ? 'Hide password' : 'Show password'}
+          className="absolute right-[14px] top-1/2 transform -translate-y-1/2 text-[#9CA3AF] hover:text-[#F9FAFB] transition-colors focus:outline-none"
+          title={showPassword ? 'Hide Access Key' : 'Show Access Key'}
         >
           {showPassword ? (
             <AiOutlineEyeInvisible size={20} />
@@ -44,23 +45,28 @@ export default function PasswordInput({
       
       {/* Password strength indicator */}
       {showStrength && value && (
-        <div className="mt-2 p-3 bg-gray-50 rounded-lg text-sm">
-          <div className="font-semibold text-gray-700 mb-1">Password Requirements:</div>
-          <ul className="space-y-1 text-gray-600">
-            <li className={value.length >= 8 ? 'text-green-600' : 'text-gray-600'}>
-              {value.length >= 8 ? '✓' : '✗'} At least 8 characters
+        <div className="mt-8 p-16 bg-brand-elevated border border-brand-border rounded-lg text-12 animate-in fade-in duration-300">
+          <div className="font-semibold text-brand-text-primary mb-8 uppercase tracking-widest text-[10px]">Security Requirements:</div>
+          <ul className="space-y-4 text-brand-text-muted">
+            <li className={`flex items-center space-x-8 ${value.length >= 8 ? 'text-emerald-400' : 'text-brand-text-muted opacity-50'}`}>
+              <div className="w-4 h-4 rounded-full bg-current" />
+              <span>At least 8 characters</span>
             </li>
-            <li className={/[A-Z]/.test(value) ? 'text-green-600' : 'text-gray-600'}>
-              {/[A-Z]/.test(value) ? '✓' : '✗'} At least 1 uppercase (A-Z)
+            <li className={`flex items-center space-x-8 ${/[A-Z]/.test(value) ? 'text-emerald-400' : 'text-brand-text-muted opacity-50'}`}>
+              <div className="w-4 h-4 rounded-full bg-current" />
+              <span>At least 1 uppercase (A-Z)</span>
             </li>
-            <li className={/[a-z]/.test(value) ? 'text-green-600' : 'text-gray-600'}>
-              {/[a-z]/.test(value) ? '✓' : '✗'} At least 1 lowercase (a-z)
+            <li className={`flex items-center space-x-8 ${/[a-z]/.test(value) ? 'text-emerald-400' : 'text-brand-text-muted opacity-50'}`}>
+              <div className="w-4 h-4 rounded-full bg-current" />
+              <span>At least 1 lowercase (a-z)</span>
             </li>
-            <li className={/[0-9]/.test(value) ? 'text-green-600' : 'text-gray-600'}>
-              {/[0-9]/.test(value) ? '✓' : '✗'} At least 1 number (0-9)
+            <li className={`flex items-center space-x-8 ${/[0-9]/.test(value) ? 'text-emerald-400' : 'text-brand-text-muted opacity-50'}`}>
+              <div className="w-4 h-4 rounded-full bg-current" />
+              <span>At least 1 number (0-9)</span>
             </li>
-            <li className={/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value) ? 'text-green-600' : 'text-gray-600'}>
-              {/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value) ? '✓' : '✗'} At least 1 special char (!@#$%...)
+            <li className={`flex items-center space-x-8 ${/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value) ? 'text-emerald-400' : 'text-brand-text-muted opacity-50'}`}>
+              <div className="w-4 h-4 rounded-full bg-current" />
+              <span>At least 1 special char</span>
             </li>
           </ul>
         </div>
@@ -68,8 +74,9 @@ export default function PasswordInput({
 
       {/* Strength message */}
       {strengthMessage && (
-        <div className="mt-2 text-sm font-semibold" dangerouslySetInnerHTML={{ __html: strengthMessage }} />
+        <div className="mt-8 text-12 font-medium text-brand-primary" dangerouslySetInnerHTML={{ __html: strengthMessage }} />
       )}
     </div>
   );
 }
+

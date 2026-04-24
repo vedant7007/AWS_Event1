@@ -1,125 +1,164 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import Button from '../components/Button';
+import Card from '../components/Card';
 import { useGameStore } from '../utils/store';
+import { FiAward, FiTrendingUp, FiActivity, FiUsers, FiInfo, FiBarChart2, FiHome, FiCheckCircle, FiStar, FiZap } from 'react-icons/fi';
 
 const ResultsPage = () => {
   const navigate = useNavigate();
   const { teamName, gameState } = useGameStore();
 
-  const finalProfit = gameState?.year3?.companyState?.cumulativeProfit || 0;
+  const finalProfit = gameState?.year4?.companyState?.cumulativeProfit || 0;
 
   const getAward = () => {
-    if (finalProfit > 100000) return { emoji: '🏆', title: 'Champion', color: 'gold' };
-    if (finalProfit > 50000) return { emoji: '🥈', title: 'Runner-up', color: 'silver' };
-    if (finalProfit > 0) return { emoji: '🥉', title: 'Profitable', color: '#CD7F32' };
-    return { emoji: '📈', title: 'Learning Experience', color: 'gray' };
+    if (finalProfit > 200000) return { icon: <FiStar size={64} className="text-yellow-400" />, title: 'Market Dominator', color: 'text-yellow-400', bg: 'bg-yellow-400/10' };
+    if (finalProfit > 100000) return { icon: <FiAward size={64} className="text-blue-400" />, title: 'Elite AWS Architect', color: 'text-blue-400', bg: 'bg-blue-400/10' };
+    if (finalProfit > 50000) return { icon: <FiCheckCircle size={64} className="text-emerald-400" />, title: 'Profitable Startup', color: 'text-emerald-400', bg: 'bg-emerald-400/10' };
+    return { icon: <FiActivity size={64} className="text-brand-primary" />, title: 'Resilient Competitor', color: 'text-brand-primary', bg: 'bg-brand-primary/10' };
   };
 
   const award = getAward();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <Header title="Final Results" />
+    <div className="min-h-screen bg-brand-bg text-brand-text-primary selection:bg-brand-primary/30 relative overflow-hidden font-sans">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] bg-brand-primary/5 rounded-full blur-[150px] -z-10 mt-[-500px]"></div>
+      
+      <Header title="Final Valuation Protocol" showLeaderboard={true} />
 
-      <main className="max-w-4xl mx-auto px-4 py-12">
-        <div className="text-center mb-12">
-          <div className="text-7xl mb-4">{award.emoji}</div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Congratulations, {teamName}!
-          </h1>
-          <p className="text-xl text-gray-700">{award.title}</p>
-        </div>
-
-        {/* Final Score Card */}
-        <div className="bg-white rounded-lg shadow-lg p-12 text-center mb-12">
-          <p className="text-gray-600 mb-2">Final Cumulative Profit</p>
-          <div className={`text-6xl font-bold mb-4 ${finalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            ${finalProfit.toLocaleString()}
+      <main className="max-w-7xl mx-auto px-24 py-64 flex-1 w-full relative z-10">
+        
+        {/* Celebration Header */}
+        <div className="text-center mb-64 space-y-24">
+          <div className="inline-flex items-center justify-center p-24 bg-brand-surface rounded-[3rem] border border-brand-border shadow-2xl relative group">
+            <div className={`absolute inset-0 ${award.bg} blur-2xl rounded-full opacity-5 group-hover:opacity-10 transition-opacity`}></div>
+            {React.cloneElement(award.icon, { className: `${award.color} relative z-10 animate-pulse` })}
           </div>
-          <p className="text-gray-600">After 3 years of strategic decisions</p>
-        </div>
-
-        {/* Year Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-xl font-bold mb-4">Year 1 - Cost Crisis</h3>
-            <div className="space-y-2 text-gray-700">
-              <p><strong>Profit:</strong> ${gameState?.year1?.companyState?.cumulativeProfit?.toLocaleString()}</p>
-              <p><strong>Score:</strong> {gameState?.year1?.scores?.cto}% CTO</p>
-              <p><strong>Focus:</strong> Cost optimization</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-xl font-bold mb-4">Year 2 - Growth Phase</h3>
-            <div className="space-y-2 text-gray-700">
-              <p><strong>Profit:</strong> ${gameState?.year2?.companyState?.cumulativeProfit?.toLocaleString()}</p>
-              <p><strong>Score:</strong> {gameState?.year2?.scores?.cfo}% CFO</p>
-              <p><strong>Focus:</strong> Scaling decisions</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-xl font-bold mb-4">Year 3 - Viral Moment</h3>
-            <div className="space-y-2 text-gray-700">
-              <p><strong>Profit:</strong> ${gameState?.year3?.companyState?.cumulativeProfit?.toLocaleString()}</p>
-              <p><strong>Score:</strong> {gameState?.year3?.scores?.pm}% PM</p>
-              <p><strong>Focus:</strong> Handling growth surge</p>
-            </div>
+          <div className="space-y-8">
+            <h1 className="text-56 font-semibold tracking-tighter leading-none">
+                Mission Complete, <span className="text-brand-primary">{teamName}</span>.
+            </h1>
+            <p className={`text-14 font-black uppercase tracking-[0.5em] ${award.color}`}>{award.title}</p>
           </div>
         </div>
 
-        {/* Key Insights */}
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-12">
-          <h2 className="text-2xl font-bold mb-6">Key Insights from Your Journey</h2>
-
-          <div className="space-y-4">
-            <div className="border-l-4 border-blue-600 pl-4">
-              <h3 className="font-bold mb-2">💡 Cost Optimization</h3>
-              <p className="text-gray-700">In Year 1, you saved ${Math.abs(gameState?.year1?.companyState?.monthlyBill - 18000).toLocaleString()} per month through smart decisions.</p>
+        {/* Final Valuation Terminal */}
+        <Card className="p-64 text-center mb-64 border-brand-primary/20 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-primary to-transparent opacity-30"></div>
+            <div className="absolute -right-32 -bottom-32 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+                <FiZap size={300} className="text-brand-primary" />
             </div>
-
-            <div className="border-l-4 border-green-600 pl-4">
-              <h3 className="font-bold mb-2">📈 Growth Impact</h3>
-              <p className="text-gray-700">Your Year 1-2 decisions shaped Year 3 infrastructure and costs.</p>
+            
+            <p className="text-12 font-bold text-brand-text-muted uppercase tracking-[0.3em] mb-24">Final Consolidated Valuation</p>
+            <div className={`text-96 font-bold mb-16 font-mono tracking-tighter transition-all duration-500 ${finalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                ${finalProfit.toLocaleString()}
             </div>
+            <p className="text-16 text-brand-text-muted font-medium max-w-xl mx-auto leading-relaxed">
+                Aggregated fiscal performance spanning the 5-year initial operational cycle (Q0 - Q4 Consolidation).
+            </p>
+        </Card>
 
-            <div className="border-l-4 border-purple-600 pl-4">
-              <h3 className="font-bold mb-2">🎯 Team Strategy</h3>
-              <p className="text-gray-700">CTO, CFO, and PM perspectives all matter. Technical decisions have financial impact; financial decisions affect product quality.</p>
+        {/* Multi-Year Breakdown */}
+        <div className="space-y-32 mb-64">
+            <div className="flex items-center space-x-12">
+                <div className="h-1 w-24 bg-brand-primary"></div>
+                <h2 className="text-12 font-bold uppercase tracking-[0.3em] text-brand-text-muted">Operational Timeline</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-16">
+                {[0, 1, 2, 3, 4].map((year) => (
+                    <Card key={year} className="p-24 border-brand-border hover:border-brand-primary/30 transition-all group">
+                        <h3 className="text-10 font-bold text-brand-text-muted uppercase tracking-widest mb-16">Year {year}</h3>
+                        <div className="text-20 font-bold text-brand-text-primary mb-4 font-mono group-hover:text-brand-primary transition-colors">
+                            ${gameState?.[`year${year}`]?.companyState?.cumulativeProfit?.toLocaleString() || '0'}
+                        </div>
+                        <p className="text-10 text-brand-text-muted font-bold uppercase tracking-tighter">
+                            {year === 0 ? 'Seed' : year === 1 ? 'Optimal' : year === 2 ? 'Growth' : year === 3 ? 'Scale' : 'Target'}
+                        </p>
+                    </Card>
+                ))}
+            </div>
+        </div>
+
+        {/* Key Intelligence */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-32 mb-64">
+            {[
+                { 
+                    title: 'System Efficiency', 
+                    desc: 'Resource utilization optimized across EC2/RDS layers, maintaining target availability.', 
+                    icon: <FiActivity />, 
+                    color: 'text-brand-primary' 
+                },
+                { 
+                    title: 'Elastic Scalability', 
+                    desc: 'Successfully mitigated peak demand cycles during critical growth windows.', 
+                    icon: <FiTrendingUp />, 
+                    color: 'text-emerald-400' 
+                },
+                { 
+                    title: 'Unit Synergy', 
+                    desc: 'High alignment between executive roles (CTO/CFO/PM) facilitated strategic agility.', 
+                    icon: <FiUsers />, 
+                    color: 'text-purple-400' 
+                }
+            ].map((intel, idx) => (
+                <Card key={idx} className="p-32 space-y-20 border-brand-border/50">
+                    <div className={`p-10 w-fit bg-brand-surface rounded-xl border border-brand-border ${intel.color} shadow-lg`}>
+                        {React.cloneElement(intel.icon, { size: 24 })}
+                    </div>
+                    <div className="space-y-8">
+                        <h3 className="text-18 font-semibold tracking-tight">{intel.title}</h3>
+                        <p className="text-14 text-brand-text-muted leading-relaxed font-medium">{intel.desc}</p>
+                    </div>
+                </Card>
+            ))}
+        </div>
+
+        {/* Strategic Debrief */}
+        <Card className="bg-brand-surface border-brand-border p-48 mb-64 relative overflow-hidden group shadow-2xl">
+          <div className="absolute top-0 right-0 p-32 opacity-[0.03] group-hover:rotate-12 transition-transform duration-1000">
+            <FiInfo size={250} />
+          </div>
+          <div className="relative z-10 space-y-32">
+            <div>
+                <h2 className="text-32 font-bold tracking-tight mb-16">Strategic Debrief</h2>
+                <p className="text-18 text-brand-text-muted max-w-4xl leading-relaxed font-medium">
+                You have successfully navigated a 5-year longitudinal simulation of cloud-native growth. The patterns mastered—architectural rightsizing, cost management, and multi-region expansion—mirror real-world SaaS operational excellence.
+                </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-16 font-bold">
+              <div className="flex items-center space-x-12 p-16 bg-brand-bg/50 rounded-xl border border-brand-border">
+                <FiCheckCircle className="text-brand-primary" />
+                <span className="text-12 uppercase tracking-widest text-brand-text-muted">Technical Debt Impact Audit</span>
+              </div>
+              <div className="flex items-center space-x-12 p-16 bg-brand-bg/50 rounded-xl border border-brand-border">
+                <FiCheckCircle className="text-brand-primary" />
+                <span className="text-12 uppercase tracking-widest text-brand-text-muted">Infrastructure Lag Mitigation</span>
+              </div>
             </div>
           </div>
-        </div>
+        </Card>
 
-        {/* Next Steps */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg p-8 mb-12">
-          <h2 className="text-2xl font-bold mb-4">What's Next?</h2>
-          <p className="mb-4">
-            This game was designed to teach you real AWS decision-making. The patterns you learned apply to real-world cloud architecture, cost optimization, and business decisions.
-          </p>
-          <ul className="list-disc list-inside space-y-2 ml-4">
-            <li>Explore AWS documentation for services you used</li>
-            <li>Consider real-world cost implications in future projects</li>
-            <li>Think about how technical decisions affect business outcomes</li>
-            <li>Join the AWS Club for hands-on learning sessions</li>
-          </ul>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-4 justify-center">
-          <button
-            onClick={() => navigate('/leaderboard')}
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition"
-          >
-            📊 View Leaderboard
-          </button>
-          <button
-            onClick={() => navigate('/')}
-            className="px-8 py-3 bg-gray-600 text-white rounded-lg font-bold hover:bg-gray-700 transition"
-          >
-            🏠 Back to Home
-          </button>
+        {/* Global Navigation */}
+        <div className="flex flex-col md:flex-row gap-24 justify-center pt-32 border-t border-brand-border">
+            <Button
+                onClick={() => navigate('/leaderboard')}
+                className="px-64 h-72 text-20 group relative overflow-hidden"
+            >
+                <div className="flex items-center justify-center space-x-16">
+                    <FiBarChart2 size={24} />
+                    <span className="uppercase font-black tracking-widest">Global Standings</span>
+                </div>
+            </Button>
+            
+            <button
+                onClick={() => navigate('/')}
+                className="px-64 h-72 bg-brand-surface text-brand-text-primary border border-brand-border rounded-2xl font-bold text-18 hover:bg-brand-bg transition-all flex items-center justify-center space-x-16 shadow-xl group"
+            >
+                <FiHome size={24} className="text-brand-primary group-hover:-translate-y-4 transition-transform" />
+                <span className="uppercase tracking-widest">Home Terminal</span>
+            </button>
         </div>
       </main>
     </div>

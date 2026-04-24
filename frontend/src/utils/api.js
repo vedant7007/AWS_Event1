@@ -10,7 +10,6 @@ const apiClient = axios.create({
   }
 });
 
-// Add token to requests
 apiClient.interceptors.request.use((config) => {
   const token = useGameStore.getState().token;
   if (token) {
@@ -19,7 +18,6 @@ apiClient.interceptors.request.use((config) => {
   return config;
 }, (error) => Promise.reject(error));
 
-// Auth API
 export const authAPI = {
   register: (teamData) => apiClient.post('/auth/register', teamData),
   login: (credentials) => apiClient.post('/auth/login', credentials),
@@ -27,31 +25,32 @@ export const authAPI = {
   getTeam: (teamId) => apiClient.get(`/auth/team/${teamId}`)
 };
 
-// Questions API
 export const questionsAPI = {
   getByYear: (year, role) => apiClient.get(`/questions/${year}/${role}`),
   getById: (questionId) => apiClient.get(`/questions/question/${questionId}`)
 };
 
-// Submissions API
 export const submissionsAPI = {
   submit: (year, answers, timeSpent) => 
     apiClient.post(`/submissions/${year}`, { answers, timeSpent }),
   get: (teamId, year) => apiClient.get(`/submissions/${teamId}/${year}`)
 };
 
-// Leaderboard API
 export const leaderboardAPI = {
   getAll: () => apiClient.get('/leaderboard'),
   getTeamPosition: (teamId) => apiClient.get(`/leaderboard/team/${teamId}`)
 };
 
-// Admin API
 export const adminAPI = {
-  getStatus: () => apiClient.get('/admin/status'),
-  getAlerts: () => apiClient.get('/admin/alerts'),
-  flagTeam: (teamId, reason) => apiClient.post(`/admin/teams/${teamId}/flag`, { reason }),
-  getTeams: () => apiClient.get('/admin/teams')
+  getSettings: () => apiClient.get('/admin/settings'),
+  updateSettings: (settings) => apiClient.post('/admin/settings', settings),
+  resetGame: (resetType) => apiClient.post('/admin/reset-game', { resetType }),
+  getTeams: () => apiClient.get('/admin/teams'),
+  getQuestions: () => apiClient.get('/admin/questions'),
+  createQuestion: (qData) => apiClient.post('/admin/questions', qData),
+  updateQuestion: (id, qData) => apiClient.put(`/admin/questions/${id}`, qData),
+  deleteQuestion: (id) => apiClient.delete(`/admin/questions/${id}`),
+  createAdmin: (adminData) => apiClient.post('/admin/create-admin', adminData)
 };
 
 export default apiClient;
