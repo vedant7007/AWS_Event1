@@ -1,0 +1,32 @@
+{
+  "name": "cloud-tycoon-backend",
+  "version": "1.0.0",
+  "description": "Cloud-Tycoon game backend API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "seed": "node src/utils/seedDatabase.js",
+    "test": "jest --detectOpenHandles",
+    "lint": "eslint src/"
+  },
+  "keywords": ["aws", "game", "education"],
+  "author": "AWS Club VJIT",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^7.0.0",
+    "dotenv": "^16.0.3",
+    "jsonwebtoken": "^9.0.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "socket.io": "^4.6.1",
+    "axios": "^1.4.0",
+    "joi": "^17.9.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22",
+    "jest": "^29.5.0",
+    "eslint": "^8.42.0"
+  }
+}
