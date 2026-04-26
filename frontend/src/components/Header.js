@@ -25,7 +25,7 @@ const Header = ({ title, showLeaderboard = true, showBackButton = false }) => {
               onClick={() => navigate('/')}
           >
             <div className="flex items-center gap-12">
-              <img src={logo} alt="Cloud Tycoon" className="h-40 w-40 object-contain group-hover:scale-105 transition-transform" />
+              <img src={logo} alt="Cloud Tycoon" className="h-[48px] w-auto rounded-lg object-contain group-hover:scale-110 transition-transform duration-300" />
               <div className="flex flex-col">
                 <h1 className="text-[20px] font-bold text-[#F9FAFB] tracking-tight leading-none group-hover:opacity-80 transition-opacity">
                     CLOUD TYCOON
