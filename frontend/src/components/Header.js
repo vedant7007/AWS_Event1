@@ -1,13 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiBarChart2, FiLayout, FiArrowLeft } from 'react-icons/fi';
+import { FiArrowLeft, FiLayout } from 'react-icons/fi';
 import { useGameStore } from '../utils/store';
-import Button from './Button';
+import logo from '../assets/logo.png';
 
 const Header = ({ title, showLeaderboard = true, showBackButton = false }) => {
   const navigate = useNavigate();
-  const { isLoggedIn, teamId } = useGameStore();
-  const isAdmin = teamId === 'ADMIN-EVENT-2026';
+  const { teamId, isLoggedIn } = useGameStore();
 
   return (
     <header className="bg-[#0B0F14] border-b border-[#1F2937] sticky top-0 z-[100] transition-all duration-300">
@@ -25,10 +24,12 @@ const Header = ({ title, showLeaderboard = true, showBackButton = false }) => {
               className="flex items-center cursor-pointer group" 
               onClick={() => navigate('/')}
           >
-            <div className="flex flex-col">
-              <h1 className="text-[24px] font-semibold text-[#F9FAFB] tracking-tight leading-none group-hover:opacity-80 transition-opacity">
-                  AWS Tycoon
-              </h1>
+            <div className="flex items-center gap-12">
+              <img src={logo} alt="Cloud Tycoon" className="h-40 w-40 object-contain group-hover:scale-105 transition-transform" />
+              <div className="flex flex-col">
+                <h1 className="text-[20px] font-bold text-[#F9FAFB] tracking-tight leading-none group-hover:opacity-80 transition-opacity">
+                    CLOUD TYCOON
+                </h1>
               {title && !showBackButton && (
                   <div className="flex items-center gap-[8px] mt-[4px]">
                       <div className="h-[4px] w-[4px] rounded-full bg-[#7C3AED]"></div>
@@ -38,8 +39,9 @@ const Header = ({ title, showLeaderboard = true, showBackButton = false }) => {
             </div>
           </div>
         </div>
+      </div>
         
-        <div className="flex items-center gap-[24px]">
+      <div className="flex items-center gap-[24px]">
           {isLoggedIn && (
             <div className="flex items-center gap-16 px-16 py-8 bg-brand-surface rounded-xl border border-brand-border">
               <div className="flex flex-col items-end">

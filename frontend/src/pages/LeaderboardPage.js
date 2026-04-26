@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import Card from '../components/Card';
 import { leaderboardAPI } from '../utils/api';
-import { FiTrendingUp, FiActivity, FiUsers, FiAward, FiZap, FiTarget, FiSearch, FiRefreshCw, FiClock } from 'react-icons/fi';
+import { FiTrendingUp, FiActivity, FiUsers, FiAward, FiZap, FiTarget, FiRefreshCw, FiClock } from 'react-icons/fi';
 
 const LeaderboardPage = () => {
   const [leaderboard, setLeaderboard] = useState([]);

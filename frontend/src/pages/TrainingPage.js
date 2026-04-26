@@ -4,7 +4,7 @@ import Header from '../components/Header';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { useGameStore } from '../utils/store';
-import { FiCloud, FiDollarSign, FiTrendingUp, FiTarget, FiInfo, FiClock, FiUsers, FiAward, FiPlay, FiBookOpen, FiCheckCircle, FiCalendar, FiChevronLeft } from 'react-icons/fi';
+import { FiCloud, FiDollarSign, FiTrendingUp, FiTarget, FiInfo, FiClock, FiUsers, FiAward, FiBookOpen, FiCheckCircle, FiCalendar, FiChevronLeft } from 'react-icons/fi';
 
 const TrainingPage = () => {
   const navigate = useNavigate();

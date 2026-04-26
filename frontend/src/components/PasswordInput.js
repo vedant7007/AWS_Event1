@@ -64,7 +64,7 @@ export default function PasswordInput({
               <div className="w-4 h-4 rounded-full bg-current" />
               <span>At least 1 number (0-9)</span>
             </li>
-            <li className={`flex items-center space-x-8 ${/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value) ? 'text-emerald-400' : 'text-brand-text-muted opacity-50'}`}>
+            <li className={`flex items-center space-x-8 ${/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(value) ? 'text-emerald-400' : 'text-brand-text-muted opacity-50'}`}>
               <div className="w-4 h-4 rounded-full bg-current" />
               <span>At least 1 special char</span>
             </li>

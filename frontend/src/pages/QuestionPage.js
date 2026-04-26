@@ -6,14 +6,13 @@ import { useGameStore } from '../utils/store';
 import { questionsAPI, submissionsAPI, adminAPI, authAPI } from '../utils/api';
 import { 
   FiClock, FiAlertCircle, FiChevronRight, FiChevronLeft, 
-  FiCheckCircle, FiLoader, FiZap, FiLock, FiBook, FiX, 
-  FiActivity, FiCommand, FiShield, FiTarget
+  FiCheckCircle, FiLoader, FiActivity
 } from 'react-icons/fi';
 
 const QuestionPage = () => {
   const { year } = useParams();
   const navigate = useNavigate();
-  const { role, teamId, answers, setCurrentQuestions, setAnswer } = useGameStore();
+  const { role, teamId, answers, setCurrentQuestions, setAnswer, setNextRoundSettings, setTabSwitchWarnings } = useGameStore();
 
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -22,10 +21,7 @@ const QuestionPage = () => {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [tabSwitchWarnings, setTabSwitchWarnings] = useState(0);
   const [isAuthorized, setIsAuthorized] = useState(true);
-  const [isHandbookOpen, setIsHandbookOpen] = useState(false);
-  const [nextRoundSettings, setNextRoundSettings] = useState(null);
 
   useEffect(() => {
     let intervalId;

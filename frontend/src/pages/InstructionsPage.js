@@ -10,7 +10,7 @@ import { FiClock, FiShield, FiAlertTriangle, FiCheckCircle, FiChevronRight } fro
 export default function InstructionsPage() {
   const { year } = useParams();
   const navigate = useNavigate();
-  const { role, teamId } = useGameStore();
+  const { role } = useGameStore();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 

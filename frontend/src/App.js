@@ -1,6 +1,5 @@
 import './styles/globals.css';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { useGameStore } from './utils/store';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -17,7 +16,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
-  const { isLoggedIn } = useGameStore();
+  // Game state is handled via store and ProtectedRoute transitions
 
   return (
     <Router>

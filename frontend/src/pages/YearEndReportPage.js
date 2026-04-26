@@ -4,7 +4,7 @@ import Header from '../components/Header';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { useGameStore } from '../utils/store';
-import { FiTrendingUp, FiDollarSign, FiActivity, FiBriefcase, FiAlertTriangle, FiCheckCircle, FiBarChart2, FiArrowRight, FiInfo, FiBell } from 'react-icons/fi';
+import { FiTrendingUp, FiDollarSign, FiActivity, FiBriefcase, FiAlertTriangle, FiCheckCircle, FiBarChart2, FiArrowRight, FiBell } from 'react-icons/fi';
 
 const YearEndReportPage = () => {
   const { year } = useParams();

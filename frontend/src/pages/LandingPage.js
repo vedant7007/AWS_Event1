@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import { FiArrowRight, FiCloud, FiZap, FiUsers, FiAward } from 'react-icons/fi';
+import { FiArrowRight, FiCloud } from 'react-icons/fi';
 import { useGameStore } from '../utils/store';
 
 const LandingPage = () => {

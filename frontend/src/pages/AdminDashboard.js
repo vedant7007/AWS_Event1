@@ -7,10 +7,10 @@ import Card from '../components/Card';
 import { adminAPI } from '../utils/api';
 import { useGameStore } from '../utils/store';
 import { 
-    FiUsers, FiActivity, FiFlag, FiShield, FiCpu, FiPlus, FiTrash2, FiPlay, FiStopCircle, 
-    FiAward, FiSettings, FiLogOut, FiSave, FiX, FiCheckCircle, FiChevronRight, FiAlertCircle, 
-    FiSearch, FiFilter, FiDownload, FiEye, FiClock, FiGrid, FiLock, FiTerminal, FiDatabase,
-    FiTrendingUp, FiBriefcase, FiUser, FiHome, FiTarget, FiCloud, FiZap, FiCircle
+    FiUsers, FiActivity, FiShield, FiPlus, FiTrash2, FiPlay, FiStopCircle, 
+    FiX, FiCheckCircle, FiAlertCircle, 
+    FiEye, FiLock,
+    FiTrendingUp, FiUser, FiHome, FiTarget, FiCloud, FiZap, FiCircle, FiAward
 } from 'react-icons/fi';
 
 const AdminDashboard = () => {

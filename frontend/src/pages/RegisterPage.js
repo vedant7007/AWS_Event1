@@ -10,7 +10,6 @@ import { FiAlertCircle, FiCheckCircle, FiLoader, FiCloud, FiDollarSign, FiTrendi
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const setAuth = useGameStore((state) => state.setAuth);
 
   const [formData, setFormData] = useState({
     teamName: '',
