@@ -62,17 +62,8 @@ export const adminAPI = {
   registerTeam: (teamData) => apiClient.post('/auth/register', teamData)
 };
 
+
 export default apiClient;
-
-
-
-
-
-
-
-
-
-
 
 
 
