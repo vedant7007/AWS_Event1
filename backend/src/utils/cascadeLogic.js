@@ -100,7 +100,7 @@ function calculateRunway(state) {
  */
 async function applyMarketEvent(teamId, year, eventId) {
   const event = await MarketEvent.findOne({ eventId });
-  if (!event) throw new Error('Market event not found');
+  if (!event) return null;
 
   // Check if team is prepared (has monitoring, etc.)
   const isPrepared = await checkTeamPreparedness(teamId, year);

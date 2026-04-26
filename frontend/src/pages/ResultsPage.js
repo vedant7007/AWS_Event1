@@ -53,7 +53,7 @@ const ResultsPage = () => {
             
             <p className="text-12 font-bold text-brand-text-muted uppercase tracking-[0.3em] mb-24">Final Consolidated Valuation</p>
             <div className={`text-96 font-bold mb-16 font-mono tracking-tighter transition-all duration-500 ${finalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                ${finalProfit.toLocaleString()}
+                ₹{finalProfit.toLocaleString()}
             </div>
             <p className="text-16 text-brand-text-muted font-medium max-w-xl mx-auto leading-relaxed">
                 Aggregated fiscal performance spanning the 5-year initial operational cycle (Q0 - Q4 Consolidation).
@@ -71,7 +71,7 @@ const ResultsPage = () => {
                     <Card key={year} className="p-24 border-brand-border hover:border-brand-primary/30 transition-all group">
                         <h3 className="text-10 font-bold text-brand-text-muted uppercase tracking-widest mb-16">Year {year}</h3>
                         <div className="text-20 font-bold text-brand-text-primary mb-4 font-mono group-hover:text-brand-primary transition-colors">
-                            ${gameState?.[`year${year}`]?.companyState?.cumulativeProfit?.toLocaleString() || '0'}
+                            ₹{gameState?.[`year${year}`]?.companyState?.cumulativeProfit?.toLocaleString() || '0'}
                         </div>
                         <p className="text-10 text-brand-text-muted font-bold uppercase tracking-tighter">
                             {year === 0 ? 'Seed' : year === 1 ? 'Optimal' : year === 2 ? 'Growth' : year === 3 ? 'Scale' : 'Target'}

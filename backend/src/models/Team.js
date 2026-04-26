@@ -12,6 +12,12 @@ const yearStateSchema = {
     pm: { type: Number, default: 0 },
     roundAvg: { type: Number, default: 0 }
   },
+  timeSpent: {
+    cto: { type: Number, default: 0 },
+    cfo: { type: Number, default: 0 },
+    pm: { type: Number, default: 0 },
+    outputTime: { type: Number, default: 0 }
+  },
   companyState: {
     monthlyBill: { type: Number, default: 0 },
     monthlyRevenue: { type: Number, default: 0 },

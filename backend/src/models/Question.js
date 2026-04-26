@@ -23,7 +23,7 @@ const questionSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['mcq', 'numerical', 'truefalse', 'rating', 'shorttext']
+    enum: ['mcq', 'numerical', 'range', 'multi-select', 'truefalse', 'rating', 'shorttext']
   },
   scenario: {
     type: String,

@@ -11,6 +11,7 @@ const questionsRoutes = require('./routes/questions');
 const submissionsRoutes = require('./routes/submissions');
 const leaderboardRoutes = require('./routes/leaderboard');
 const adminRoutes = require('./routes/admin');
+const { connectRedis } = require('./utils/redis');
 
 // Initialize Express app
 const app = express();
@@ -75,11 +76,11 @@ io.on('connection', (socket) => {
 app.set('io', io);
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-  .then(() => console.log('✓ Connected to MongoDB'))
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('✓ Connected to MongoDB');
+    connectRedis();
+  })
   .catch((err) => console.error('✗ MongoDB connection error:', err));
 
 // Global error handler

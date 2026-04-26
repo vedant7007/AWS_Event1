@@ -88,11 +88,11 @@ export default function ProfilePage() {
                 {isEliminated ? (
                   <div className="text-red-400 font-bold text-14 flex items-center"><FiAlertTriangle className="mr-6" /> ELIMINATED — Round {adminActiveRound + 1}</div>
                 ) : hasCompletedCurrentRound ? (
-                  <div className="text-emerald-400 font-bold text-14 flex items-center"><FiCheckCircle className="mr-6" /> Round {adminActiveRound + 1} Committed</div>
+                  <div className="text-emerald-400 font-bold text-14 flex items-center"><FiCheckCircle className="mr-6" /> You have completed round {adminActiveRound + 1}</div>
                 ) : isRoundActive ? (
-                  <div className="text-brand-primary font-bold text-14 flex items-center animate-pulse"><FiActivity className="mr-6" /> Round {adminActiveRound + 1} LIVE</div>
+                  <div className="text-brand-primary font-bold text-14 flex items-center animate-pulse"><FiActivity className="mr-6" /> Round {adminActiveRound + 1} started</div>
                 ) : (
-                  <div className="text-brand-text-muted font-semibold text-14 flex items-center"><FiLock className="mr-6" /> Standby — Round {adminActiveRound + 1}</div>
+                  <div className="text-brand-text-muted font-semibold text-14 flex items-center"><FiLock className="mr-6" /> waiting for round {adminActiveRound + 1} to be started</div>
                 )}
             </div>
             <span className="text-10 font-bold text-emerald-400 uppercase bg-emerald-500/10 px-8 py-2 rounded border border-emerald-500/20">{teamData?.eventStatus}</span>
@@ -126,7 +126,7 @@ export default function ProfilePage() {
         <Card className="p-20 border-brand-border bg-brand-surface/40">
           <div className="flex items-center gap-10 mb-12 border-b border-brand-border pb-8">
             <FiActivity className="text-brand-primary" size={18} />
-            <h3 className="text-14 font-bold text-brand-text-primary uppercase tracking-wider">Tactical Responsibilities</h3>
+            <h3 className="text-14 font-bold text-brand-text-primary uppercase tracking-wider">{roleDescriptions[role?.toLowerCase()]?.name} Responsibilities</h3>
           </div>
           <div className="text-13 text-brand-text-muted leading-relaxed">
             {roleDescriptions[role?.toLowerCase()]?.desc || 'No responsibilities defined.'}
@@ -134,45 +134,51 @@ export default function ProfilePage() {
         </Card>
 
         {/* Footer Actions — Compact & Pro */}
-        <div className="flex flex-wrap justify-between items-center gap-12 bg-brand-elevated/30 p-12 rounded-xl border border-brand-border">
-          <div className="flex gap-8">
+        <div className="flex flex-wrap justify-between items-center bg-brand-elevated/30 p-12 rounded-xl border border-brand-border">
+          <div className="flex gap-8 flex-wrap">
             <button 
                 onClick={() => setIsHandbookOpen(!isHandbookOpen)} 
-                className={`h-36 px-16 rounded-lg text-12 font-bold flex items-center gap-8 border transition-all ${isHandbookOpen ? 'bg-brand-primary text-white border-brand-primary shadow-glow-sm' : 'text-brand-text-secondary hover:text-brand-primary border-brand-border hover:bg-brand-surface'}`}
+                className={`h-[32px] px-12 rounded bg-brand-surface border text-[11px] font-bold uppercase tracking-wider flex items-center gap-6 transition-all ${isHandbookOpen ? 'bg-brand-primary text-white border-brand-primary shadow-glow-sm' : 'text-brand-text-secondary hover:text-brand-primary border-brand-border hover:bg-white/5'}`}
             >
-                <FiBook size={14} />
-                {isHandbookOpen ? 'Close Handbook' : 'Open Strategic Handbook'}
+                <FiBook size={12} />
+                Handbook
             </button>
 
-            <a href="/handbook.pdf" download className="h-36 px-16 rounded-lg bg-brand-surface border border-brand-border flex items-center gap-8 text-brand-text-secondary hover:text-brand-primary transition-colors text-12 font-bold">
-                <FiDownload size={14} />
-                Download PDF
+            <a href="/handbook.pdf" download className="h-[32px] px-12 rounded bg-brand-surface border border-brand-border flex items-center gap-6 text-brand-text-secondary hover:text-brand-primary transition-colors text-[11px] font-bold uppercase tracking-wider">
+                <FiDownload size={12} />
+                PDF
             </a>
+
+            <button 
+                onClick={() => navigate('/training')} 
+                className="h-[32px] px-12 rounded bg-brand-surface border border-brand-border text-brand-text-secondary hover:text-brand-primary hover:bg-white/5 flex items-center gap-6 transition-all text-[11px] font-bold uppercase tracking-wider"
+            >
+                <FiActivity size={12} /> Instructions & Planning
+            </button>
           </div>
 
-          <div className="flex gap-8">
-            <button onClick={() => navigate('/training')} className="h-36 px-16 rounded-lg text-12 font-bold text-brand-text-secondary hover:text-brand-primary border border-brand-border hover:bg-brand-surface flex items-center gap-8 transition-all">
-                <FiActivity size={14} /> Training Simulations
-            </button>
-
+          <div className="flex gap-8 mt-12 sm:mt-0">
             {hasCompletedCurrentRound && !isEliminated ? (
-                <button 
-                    onClick={() => navigate(`/answers/${adminActiveRound}`)}
-                    className="h-36 px-20 rounded-lg text-12 font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-8 shadow-lg shadow-emerald-900/20 transition-all hover:scale-105"
-                >
-                    <FiCheckCircle size={14} /> View Debrief
-                </button>
+                <div className="flex items-center gap-16">
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest leading-none">Registered</span>
+                    <span className="text-[10px] font-semibold text-brand-text-muted mt-2 italic">Waiting for Round {adminActiveRound + 2}...</span>
+                  </div>
+                  <div className="h-[32px] px-12 rounded bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-6 text-emerald-400 text-[11px] font-bold shadow-glow-sm uppercase tracking-wider">
+                      <FiCheckCircle size={12} /> Round {adminActiveRound + 1} Done
+                  </div>
+                </div>
             ) : !isEliminated ? (
                 <button 
                     onClick={() => isCurrentlyPlayable && navigate(`/instructions/${adminActiveRound}`)}
                     disabled={!isCurrentlyPlayable}
-                    className={`h-36 px-24 rounded-lg text-12 font-bold uppercase tracking-wider flex items-center gap-8 transition-all ${
+                    className={`h-[32px] px-16 rounded text-[11px] font-bold uppercase tracking-widest flex items-center gap-6 transition-all ${
                         isCurrentlyPlayable 
-                        ? 'bg-brand-primary hover:scale-105 text-white shadow-lg shadow-brand-primary/30' 
+                        ? 'bg-brand-primary hover:bg-brand-primary/90 text-white shadow-lg shadow-brand-primary/30' 
                         : 'opacity-50 cursor-not-allowed bg-brand-surface border border-brand-border text-brand-text-muted'
                     }`}
                 >
-                    <FiPlay size={14} /> {isRoundActive ? `Initiate Round ${adminActiveRound + 1}` : `Awaiting Round ${adminActiveRound + 1}`}
+                    <FiPlay size={12} /> {isRoundActive ? `Start Round ${adminActiveRound + 1}` : `Waiting for Round ${adminActiveRound + 1} to start`}
                 </button>
             ) : null}
           </div>

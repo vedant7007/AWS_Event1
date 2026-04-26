@@ -39,11 +39,11 @@ const LandingPage = () => {
                 ) : (
                     <>
                         <Button
-                            onClick={() => navigate('/register')}
+                            onClick={() => navigate('/login')}
                             className="w-full"
                             variant="primary"
                         >
-                            Register
+                            Log in
                         </Button>
                     </>
                 )}
@@ -124,19 +124,7 @@ const LandingPage = () => {
             </div>
         </section>
 
-        {/* Bottom CTA */}
-        {!isLoggedIn && (
-            <section className="py-[120px] text-center border-t border-[#1F2937] flex flex-col items-center">
-                <h3 className="text-[32px] font-bold text-[#F9FAFB] tracking-tight mb-[24px]">Ready to compete?</h3>
-                <Button 
-                    onClick={() => navigate('/register')}
-                    className="w-full sm:w-auto"
-                >
-                    Register Your Team
-                    <FiArrowRight size={16} />
-                </Button>
-            </section>
-        )}
+        {/* Bottom CTA Removed as requested */}
 
         <footer className="py-[32px] text-center border-t border-[#1F2937]">
             <p className="text-[14px] text-[#9CA3AF]">AWS Cloud Club Tycoon &copy; 2026</p>

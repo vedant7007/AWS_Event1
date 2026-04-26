@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Team = require('../models/Team');
+const { redisClient, isRedisReady } = require('../utils/redis');
 
 /**
  * GET /api/leaderboard
@@ -8,6 +9,16 @@ const Team = require('../models/Team');
  */
 router.get('/', async (req, res) => {
   try {
+    const cacheKey = 'global:leaderboard';
+    
+    if (isRedisReady()) {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        console.log('[Redis Hit] Serving Leaderboard Cache');
+        return res.status(200).json(JSON.parse(cached));
+      }
+    }
+
     const teams = await Team.find(
       { eventStatus: { $in: ['registered', 'in-progress', 'completed'] }, teamId: { $ne: 'ADMIN-EVENT-2026' } },
       'teamId teamName gameState finalScore points createdAt'
@@ -15,23 +26,94 @@ router.get('/', async (req, res) => {
       .sort({ 'finalScore.cumulativeProfit': -1, createdAt: 1 })
       .limit(100);
 
-    const leaderboard = teams.map((team, idx) => ({
-      rank: team.finalScore?.rank || idx + 1,
-      teamId: team.teamId,
-      teamName: team.teamName,
-      currentYear: team.currentYear,
-      year1Profit: team.gameState?.year1?.companyState?.cumulativeProfit || 0,
-      year2Profit: team.gameState?.year2?.companyState?.cumulativeProfit || 0,
-      year3Profit: team.gameState?.year3?.companyState?.cumulativeProfit || 0,
-      status: team.eventStatus,
-      cumulativeProfit: team.finalScore?.cumulativeProfit || 0
+    const unsortedLeaderboard = teams.map((team, idx) => {
+      let scoreSum = 0;
+      let rolesCount = 0;
+      let totalTimeSpent = 0;
+      let anyTimeSpent = false;
+      
+      for (let i = 0; i <= 4; i++) {
+          const rd = team.gameState?.[`year${i}`];
+          if (rd && rd.answers) {
+              const ctoDone = Object.keys(rd.answers.cto || {}).length > 0;
+              const cfoDone = Object.keys(rd.answers.cfo || {}).length > 0;
+              const pmDone = Object.keys(rd.answers.pm || {}).length > 0;
+              
+              if (ctoDone) { rolesCount++; scoreSum += (rd.scores?.cto || 0); }
+              if (cfoDone) { rolesCount++; scoreSum += (rd.scores?.cfo || 0); }
+              if (pmDone)  { rolesCount++; scoreSum += (rd.scores?.pm || 0); }
+              
+              // Output time is ONLY calculated when ALL 3 roles are submitted
+              if (ctoDone && cfoDone && pmDone) {
+                const avgTimeSpent = (
+                  (rd.timeSpent?.cto || 0) +
+                  (rd.timeSpent?.cfo || 0) +
+                  (rd.timeSpent?.pm || 0)
+                ) / 3;
+                // Output Time is the raw average time spent by the 3 roles (used for tie-breaking)
+                const roundOutputTime = Math.round(avgTimeSpent);
+                totalTimeSpent += roundOutputTime;
+                anyTimeSpent = true;
+              }
+          }
+      }
+                               
+      const rawEfficiency = rolesCount > 0 ? Math.round((scoreSum / (Math.ceil(rolesCount/3) * 30)) * 100) : 0;
+      const avgEfficiency = Math.min(100, rawEfficiency);
+
+      const getRoundPoints = (idx) => {
+          const yd = team.gameState?.[`year${idx}`];
+          if (!yd) return 0;
+          return (yd.scores?.cto || 0) + (yd.scores?.cfo || 0) + (yd.scores?.pm || 0);
+      };
+
+      return {
+          teamId: team.teamId,
+          teamName: team.teamName,
+          currentYear: team.currentYear,
+          year0Points: getRoundPoints(0),
+          year1Points: getRoundPoints(1),
+          year2Points: getRoundPoints(2),
+          year3Points: getRoundPoints(3),
+          year4Points: getRoundPoints(4),
+          status: team.eventStatus,
+          scoreSum: scoreSum, // Use for sorting
+          cumulativeProfit: team.finalScore?.cumulativeProfit || 0,
+          avgEfficiency: avgEfficiency,
+          totalTimeSpent: anyTimeSpent ? totalTimeSpent : undefined,
+          createdAt: team.createdAt
+      };
+    });
+
+    // Sort by scoreSum desc (Live Valuation), then totalTimeSpent asc, then createdAt asc
+    unsortedLeaderboard.sort((a, b) => {
+        if (b.scoreSum !== a.scoreSum) {
+            return b.scoreSum - a.scoreSum;
+        }
+        const timeA = a.totalTimeSpent ?? Infinity;
+        const timeB = b.totalTimeSpent ?? Infinity;
+        if (timeA !== timeB) {
+            return timeA - timeB;
+        }
+        return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+
+    const leaderboard = unsortedLeaderboard.map((team, idx) => ({
+        ...team,
+        rank: idx + 1
     }));
 
-    res.status(200).json({
+    const result = {
       timestamp: new Date().toISOString(),
       totalTeams: leaderboard.length,
       leaderboard
-    });
+    };
+
+    if (isRedisReady()) {
+      await redisClient.setEx(cacheKey, 5, JSON.stringify(result));
+    }
+
+    res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

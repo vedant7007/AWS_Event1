@@ -6,7 +6,7 @@ import Card from '../components/Card';
 import Header from '../components/Header';
 import { authAPI } from '../utils/api';
 import { useGameStore } from '../utils/store';
-import { FiAlertCircle, FiLoader } from 'react-icons/fi';
+import { FiAlertCircle, FiLoader, FiShield, FiUser } from 'react-icons/fi';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -89,6 +89,79 @@ const LoginPage = () => {
             <p className="text-[14px] text-[#9CA3AF]">Enter your credentials to access the console</p>
           </div>
 
+          {/* Quick Access for Development */}
+          <div className="grid grid-cols-2 gap-[16px] mb-[24px]">
+            <button 
+              onClick={async () => {
+                const adminCreds = {
+                  teamId: 'ADMIN-EVENT-2026',
+                  memberName: 'Coordinator',
+                  role: 'admin',
+                  password: 'superuser123!'
+                };
+                setLoading(true);
+                try {
+                  const res = await authAPI.login(adminCreds);
+                  setAuth({
+                    token: res.data.token,
+                    userId: res.data.userId,
+                    teamId: res.data.teamId,
+                    teamName: 'Admin Hub',
+                    memberName: res.data.memberName,
+                    role: res.data.role,
+                    currentYear: res.data.currentYear || 0
+                  });
+                  navigate('/admin');
+                } catch (err) {
+                  setError('Quick Login Failed: Admin credentials not found.');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="flex flex-col items-center gap-[8px] p-[16px] bg-[#111827] border border-[#1F2937] hover:border-[#7C3AED]/50 rounded-[12px] group transition-all"
+            >
+              <div className="w-[40px] h-[40px] bg-[#7C3AED]/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FiShield className="text-[#7C3AED]" size={20} />
+              </div>
+              <span className="text-[12px] font-bold text-[#F9FAFB] uppercase tracking-wider">Login as Admin</span>
+            </button>
+
+            <button 
+              onClick={async () => {
+                const userCreds = {
+                  teamId: 'TF6CEABF1A025',
+                  memberName: 'Bunny',
+                  role: 'cfo',
+                  password: 'password123'
+                };
+                setLoading(true);
+                try {
+                  const res = await authAPI.login(userCreds);
+                  setAuth({
+                    token: res.data.token,
+                    userId: res.data.userId,
+                    teamId: res.data.teamId,
+                    teamName: res.data.teamName || 'Salar',
+                    memberName: res.data.memberName,
+                    role: res.data.role,
+                    currentYear: res.data.currentYear || 0
+                  });
+                  navigate('/profile');
+                } catch (err) {
+                  setError('Quick Login Failed: User credentials not found.');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="flex flex-col items-center gap-[8px] p-[16px] bg-[#111827] border border-[#1F2937] hover:border-[#10b981]/50 rounded-[12px] group transition-all"
+            >
+              <div className="w-[40px] h-[40px] bg-[#10b981]/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                <FiUser className="text-[#10b981]" size={20} />
+              </div>
+              <span className="text-[12px] font-bold text-[#F9FAFB] uppercase tracking-wider">Login as User</span>
+            </button>
+          </div>
+
           <Card className="p-[32px]">
             <form onSubmit={handleSubmit} className="flex flex-col gap-[24px]">
                 {error && (
@@ -163,13 +236,7 @@ const LoginPage = () => {
 
           <div className="mt-[24px] text-center">
             <p className="text-[14px] text-[#9CA3AF]">
-              Don't have an account?{' '}
-              <button 
-                  onClick={() => navigate('/register')}
-                  className="text-[#F9FAFB] hover:text-[#7C3AED] transition-colors"
-              >
-                  Sign up
-              </button>
+              Event Security Active. New accounts must be provisioned by the Coordinator.
             </p>
           </div>
         </div>

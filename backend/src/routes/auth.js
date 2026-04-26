@@ -6,11 +6,14 @@ const { generateToken } = require('../middleware/auth');
 const bcrypt = require('bcryptjs');
 const { validatePassword } = require('../utils/passwordValidator');
 
+const { verifyToken, verifyAdmin } = require('../middleware/auth');
+
 /**
  * POST /api/auth/register
  * Register a new team with password validation
+ * RESTRICTED: Only administrators can create new teams.
  */
-router.post('/register', async (req, res) => {
+router.post('/register', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { teamName, teamLead, members, college, department } = req.body;
 

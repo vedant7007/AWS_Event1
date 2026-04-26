@@ -23,6 +23,8 @@ export default function InstructionsPage() {
           setAuthorized(true);
         } else {
           setAuthorized(false);
+          // Immediately send them back if round was stopped or changed
+          navigate('/profile');
         }
       } catch (err) {
         console.error(err);
@@ -31,7 +33,10 @@ export default function InstructionsPage() {
       }
     };
     checkAuth();
-  }, [year]);
+    // Also periodically check so we can boot them if the admin hits "Stop Round" while they are reading instructions
+    const intervalId = setInterval(checkAuth, 3000);
+    return () => clearInterval(intervalId);
+  }, [year, navigate]);
 
   if (loading) {
     return (

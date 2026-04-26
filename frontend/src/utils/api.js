@@ -51,7 +51,8 @@ export const adminAPI = {
   createQuestion: (qData) => apiClient.post('/admin/questions', qData),
   updateQuestion: (id, qData) => apiClient.put(`/admin/questions/${id}`, qData),
   deleteQuestion: (id) => apiClient.delete(`/admin/questions/${id}`),
-  createAdmin: (adminData) => apiClient.post('/admin/create-admin', adminData)
+  createAdmin: (adminData) => apiClient.post('/admin/create-admin', adminData),
+  registerTeam: (teamData) => apiClient.post('/auth/register', teamData)
 };
 
 export default apiClient;

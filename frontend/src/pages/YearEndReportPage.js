@@ -59,21 +59,21 @@ const YearEndReportPage = () => {
                 {[
                     { 
                         label: 'Monthly Revenue', 
-                        value: `$${yearData.companyState?.monthlyRevenue?.toLocaleString()}`,
+                        value: `₹${yearData.companyState?.monthlyRevenue?.toLocaleString()}`,
                         icon: <FiTrendingUp />,
                         color: 'text-emerald-400',
                         bg: 'bg-emerald-500/10'
                     },
                     { 
                         label: 'Monthly AWS Bill', 
-                        value: `$${yearData.companyState?.monthlyBill?.toLocaleString()}`,
+                        value: `₹${yearData.companyState?.monthlyBill?.toLocaleString()}`,
                         icon: <FiDollarSign />,
                         color: 'text-red-400',
                         bg: 'bg-red-500/10'
                     },
                     { 
                         label: 'Cumulative Profit', 
-                        value: `$${yearData.companyState?.cumulativeProfit?.toLocaleString()}`,
+                        value: `₹${yearData.companyState?.cumulativeProfit?.toLocaleString()}`,
                         icon: <FiActivity />,
                         color: yearData.companyState?.cumulativeProfit >= 0 ? 'text-brand-primary' : 'text-amber-400',
                         bg: yearData.companyState?.cumulativeProfit >= 0 ? 'bg-brand-primary/10' : 'bg-amber-500/10'
@@ -107,7 +107,7 @@ const YearEndReportPage = () => {
                             <div className="flex items-center justify-between">
                                 <span className="text-14 font-medium text-brand-text-muted italic">Operating Margin</span>
                                 <span className={`text-28 font-bold font-mono ${netMonthly >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                    {netMonthly >= 0 ? '+' : ''}${netMonthly.toLocaleString()}
+                                    {netMonthly >= 0 ? '+' : ''}₹{netMonthly.toLocaleString()}
                                 </span>
                             </div>
                         </div>

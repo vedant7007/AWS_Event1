@@ -58,6 +58,12 @@ const Leaderboard = () => {
                     <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Unit Identity</span>
                   </div>
                 </th>
+                <th className="px-[24px] py-[20px] border-b border-brand-border text-center">
+                  <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Efficiency</span>
+                </th>
+                <th className="px-[24px] py-[20px] border-b border-brand-border text-center">
+                  <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Op Time</span>
+                </th>
                 {[1, 2, 3, 4, 5].map(y => (
                   <th key={y} className="px-[24px] py-[20px] border-b border-brand-border text-center">
                      <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">ROUND {y}</span>
@@ -89,20 +95,30 @@ const Leaderboard = () => {
                   <td className="px-[24px] py-[24px] whitespace-nowrap">
                      <span className="text-14 font-semibold text-brand-text-primary group-hover:text-brand-primary transition-colors">{team.teamName}</span>
                   </td>
+                  <td className="px-[24px] py-[24px] text-center">
+                    <span className="text-14 font-mono font-bold text-emerald-400">
+                      {team.avgEfficiency !== undefined ? `${team.avgEfficiency}%` : '-'}
+                    </span>
+                  </td>
+                  <td className="px-[24px] py-[24px] text-center">
+                    <span className="text-12 font-mono text-brand-text-secondary whitespace-nowrap">
+                      {team.totalTimeSpent !== undefined ? `${Math.floor(team.totalTimeSpent/60)}m ${team.totalTimeSpent%60}s` : '-'}
+                    </span>
+                  </td>
                   {[0, 1, 2, 3, 4].map(y => {
-                    const profit = team[`year${y}Profit`];
-                    const hasValue = profit !== 0 && profit !== undefined;
+                    const points = team[`year${y}Points`];
+                    const hasValue = points !== 0 && points !== undefined;
                     return (
                       <td key={y} className="px-[24px] py-[24px] text-center">
-                        <span className={`font-mono text-14 ${hasValue ? 'text-brand-text-secondary' : 'text-brand-text-muted opacity-40'}`}>
-                            {hasValue ? `$${profit.toLocaleString()}` : '-'}
+                        <span className={`font-mono text-14 ${points !== undefined ? 'text-brand-text-secondary' : 'text-brand-text-muted opacity-40'}`}>
+                            {points !== undefined ? `${points} pts` : '0 pts'}
                         </span>
                       </td>
                     );
                   })}
                   <td className="px-[24px] py-[24px] text-right">
-                    <span className={`text-18 font-bold font-mono tracking-tight ${idx === 0 && team.cumulativeProfit ? 'text-brand-primary shadow-glow-sm' : 'text-brand-text-primary'}`}>
-                      {team.cumulativeProfit ? `$${team.cumulativeProfit.toLocaleString()}` : '-'}
+                    <span className={`text-18 font-bold font-mono tracking-tight ${idx === 0 ? 'text-brand-primary' : 'text-brand-text-primary'}`}>
+                      {team.scoreSum || 0} pts
                     </span>
                   </td>
                 </tr>

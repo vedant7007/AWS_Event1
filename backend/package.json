@@ -10,23 +10,28 @@
     "test": "jest --detectOpenHandles",
     "lint": "eslint src/"
   },
-  "keywords": ["aws", "game", "education"],
+  "keywords": [
+    "aws",
+    "game",
+    "education"
+  ],
   "author": "AWS Club VJIT",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^7.0.0",
-    "dotenv": "^16.0.3",
-    "jsonwebtoken": "^9.0.0",
+    "axios": "^1.4.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "socket.io": "^4.6.1",
-    "axios": "^1.4.0",
-    "joi": "^17.9.2"
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "joi": "^17.9.2",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^7.0.0",
+    "redis": "^5.12.1",
+    "socket.io": "^4.6.1"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22",
+    "eslint": "^8.42.0",
     "jest": "^29.5.0",
-    "eslint": "^8.42.0"
+    "nodemon": "^2.0.22"
   }
 }

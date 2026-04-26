@@ -25,36 +25,80 @@ function generateSubmissionId() {
  * Calculate score for a single answer
  */
 function scoreAnswer(question, userAnswer) {
-  if (!question || !question.correctAnswer) return 0;
+  if (!question) return 0;
+  
+  const fullScore = question.scoringRubric?.full || 10;
+  const partialScore = question.scoringRubric?.partial || 0;
+  const incorrectScore = question.scoringRubric?.incorrect || 0;
 
-  if (question.type === 'mcq' || question.type === 'truefalse') {
-    return userAnswer === question.correctAnswer ? question.scoringRubric.full : 0;
-  }
+  // Type-specific scoring
+  switch (question.type) {
+    case 'mcq':
+    case 'truefalse':
+      return userAnswer === question.correctAnswer ? fullScore : incorrectScore;
 
-  if (question.type === 'numerical') {
-    if (!question.acceptableRange) {
-      return userAnswer === question.correctAnswer ? question.scoringRubric.full : 0;
-    }
-    
-    const val = parseFloat(userAnswer);
-    if (val >= question.acceptableRange.min && val <= question.acceptableRange.max) {
-      return question.scoringRubric.full;
-    }
-    return 0;
-  }
+    case 'multi-select':
+      // Expect userAnswer to be an array of optionIds
+      if (!Array.isArray(userAnswer) || userAnswer.length === 0) return incorrectScore;
+      
+      const correctAnswers = Array.isArray(question.correctAnswer) ? question.correctAnswer : 
+                            (question.correctAnswers || [question.correctAnswer]);
+      
+      // Match exactly?
+      const isExactlyCorrect = userAnswer.length === correctAnswers.length && 
+                              userAnswer.every(val => correctAnswers.includes(val));
+      
+      if (isExactlyCorrect) return fullScore;
+      
+      // Strictly no partial credit if any wrong answer is chosen
+      const hasWrong = userAnswer.some(val => !correctAnswers.includes(val));
+      if (hasWrong) return incorrectScore;
 
-  if (question.type === 'rating') {
-    // For ratings, full score if in ideal range
-    if (question.correctAnswer.min && question.correctAnswer.max) {
-      const rating = parseInt(userAnswer);
-      if (rating >= question.correctAnswer.min && rating <= question.correctAnswer.max) {
-        return question.scoringRubric.full;
+      // If all chosen are correct but some are missing, give partial if configured
+      const hasSomeRight = userAnswer.every(val => correctAnswers.includes(val));
+      if (hasSomeRight && partialScore > 0) return partialScore;
+      
+      return incorrectScore;
+
+    case 'range':
+      // Expect userAnswer to be { min: number, max: number }
+      if (!userAnswer || typeof userAnswer !== 'object') return incorrectScore;
+      
+      const userMin = parseFloat(userAnswer.min);
+      const userMax = parseFloat(userAnswer.max);
+      
+      if (isNaN(userMin) || isNaN(userMax)) return incorrectScore;
+      if (userMin > userMax) return incorrectScore; // Invalid range
+
+      // Check acceptableRange
+      const correctMin = question.acceptableRange?.min;
+      const correctMax = question.acceptableRange?.max;
+
+      if (correctMin !== undefined && correctMax !== undefined) {
+        // IMPROVED: User's range must be within the correct range to get points
+        if (userMin >= correctMin && userMax <= correctMax) {
+          return fullScore;
+        }
       }
-    }
-    return 0;
-  }
+      return incorrectScore;
 
-  return 0;
+    case 'numerical':
+    case 'rating':
+      const val = parseFloat(userAnswer);
+      if (isNaN(val)) return incorrectScore;
+      
+      // Use acceptableRange if provided, otherwise exact match
+      const numMin = question.acceptableRange?.min ?? (typeof question.correctAnswer === 'number' ? question.correctAnswer : parseFloat(question.correctAnswer));
+      const numMax = question.acceptableRange?.max ?? (typeof question.correctAnswer === 'number' ? question.correctAnswer : parseFloat(question.correctAnswer));
+
+      if (numMin !== undefined && numMax !== undefined) {
+        if (val >= numMin && val <= numMax) return fullScore;
+      }
+      return incorrectScore;
+
+    default:
+      return userAnswer === question.correctAnswer ? fullScore : incorrectScore;
+  }
 }
 
 /**

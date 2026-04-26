@@ -10,7 +10,6 @@ import ProfilePage from './pages/ProfilePage';
 import TrainingPage from './pages/TrainingPage';
 import QuestionPage from './pages/QuestionPage';
 import InstructionsPage from './pages/InstructionsPage';
-import AnswersPage from './pages/AnswersPage';
 import YearEndReportPage from './pages/YearEndReportPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import ResultsPage from './pages/ResultsPage';
@@ -44,10 +43,6 @@ function App() {
         <Route
           path="/questions/:year"
           element={<ProtectedRoute><QuestionPage /></ProtectedRoute>}
-        />
-        <Route
-          path="/answers/:year"
-          element={<ProtectedRoute><AnswersPage /></ProtectedRoute>}
         />
         <Route
           path="/year-end-report/:year"

@@ -16,6 +16,7 @@ const {
   calculateYear3StartingState,
   applyMarketEvent
 } = require('../utils/cascadeLogic');
+const { redisClient, isRedisReady } = require('../utils/redis');
 
 /**
  * POST /api/submissions/:year
@@ -72,17 +73,25 @@ router.post('/:year', verifyToken, async (req, res) => {
     const updateData = {
       [`gameState.${yearKey}.answers.${role}`]: answers,
       [`gameState.${yearKey}.scores.${role}`]: roleScore,
+      [`gameState.${yearKey}.timeSpent.${role}`]: req.body.timeSpent || 0,
       [`gameState.${yearKey}.submittedAt`]: new Date()
     };
 
     await Team.updateOne({ teamId }, updateData);
 
+    // Invalidate Leaderboard cache so ranking updates immediately
+    if (isRedisReady()) {
+      await redisClient.del('global:leaderboard');
+    }
+
     // Check if all roles have submitted for THIS team
     const updatedTeam = await Team.findOne({ teamId });
+    const checkState = updatedTeam.gameState[yearKey];
     const allSubmitted = 
-      updatedTeam.gameState[yearKey].answers.cto &&
-      updatedTeam.gameState[yearKey].answers.cfo &&
-      updatedTeam.gameState[yearKey].answers.pm;
+      checkState && 
+      Object.keys(checkState.answers.cto || {}).length > 0 &&
+      Object.keys(checkState.answers.cfo || {}).length > 0 &&
+      Object.keys(checkState.answers.pm || {}).length > 0;
 
     if (allSubmitted) {
       // Calculate cascade effects
@@ -132,12 +141,28 @@ async function processYearCompletion(teamId, year) {
   const team = await Team.findOne({ teamId });
   const yearKey = `year${year}`;
 
-  // Aggregate all role scores
-  const roundAvg = Math.round(
-    (team.gameState[yearKey].scores.cto +
-     team.gameState[yearKey].scores.cfo +
-     team.gameState[yearKey].scores.pm) / 3
-  );
+  // Aggregate all role scores (Sum of 3 roles for round total)
+  const roundTotal = 
+    (team.gameState[yearKey].scores.cto || 0) +
+    (team.gameState[yearKey].scores.cfo || 0) +
+    (team.gameState[yearKey].scores.pm || 0);
+  
+  const avgTimeSpent = (
+    (team.gameState[yearKey].timeSpent?.cto || 0) +
+    (team.gameState[yearKey].timeSpent?.cfo || 0) +
+    (team.gameState[yearKey].timeSpent?.pm || 0)
+  ) / 3;
+
+  // Output Time is the raw average time spent by the 3 roles (used for tie-breaking)
+  const outputTime = Math.round(avgTimeSpent);
+
+  if (!team.gameState[yearKey].timeSpent) {
+      team.gameState[yearKey].timeSpent = { cto: 0, cfo: 0, pm: 0 };
+  }
+  team.gameState[yearKey].timeSpent.outputTime = outputTime;
+  team.gameState[yearKey].scores.roundAvg = roundTotal; // Store total in roundAvg for legacy compat or rename
+
+  team.points = (team.points || 0) + roundTotal;
 
   // Initialize company state for year 1
   if (year === 1) {
@@ -179,21 +204,27 @@ async function processYearCompletion(teamId, year) {
   } else {
     // Final year completed
     team.eventStatus = 'completed';
-    const year3Profit = team.gameState.year3.companyState.cumulativeProfit;
-    team.finalScore = {
-      cumulativeProfit: year3Profit,
-      totalScore: Math.round((
-        team.gameState.year1.scores.cto +
-        team.gameState.year2.scores.cto +
-        team.gameState.year3.scores.cto +
-        team.gameState.year1.scores.cfo +
-        team.gameState.year2.scores.cfo +
-        team.gameState.year3.scores.cfo +
-        team.gameState.year1.scores.pm +
-        team.gameState.year2.scores.pm +
-        team.gameState.year3.scores.pm
-      ) / 9)
-    };
+  }
+
+  const currentProfit = team.gameState[yearKey].companyState.cumulativeProfit || 0;
+  
+  if (!team.finalScore) {
+      team.finalScore = { cumulativeProfit: currentProfit, totalScore: roundAvg };
+  } else {
+      team.finalScore.cumulativeProfit = currentProfit;
+      if (year === 3) {
+        team.finalScore.totalScore = Math.round((
+            team.gameState.year1.scores.cto +
+            team.gameState.year2.scores.cto +
+            team.gameState.year3.scores.cto +
+            team.gameState.year1.scores.cfo +
+            team.gameState.year2.scores.cfo +
+            team.gameState.year3.scores.cfo +
+            team.gameState.year1.scores.pm +
+            team.gameState.year2.scores.pm +
+            team.gameState.year3.scores.pm
+        ) / 9);
+      }
   }
 
   await team.save();

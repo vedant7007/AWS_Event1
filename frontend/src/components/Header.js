@@ -40,39 +40,15 @@ const Header = ({ title, showLeaderboard = true, showBackButton = false }) => {
         </div>
         
         <div className="flex items-center gap-[24px]">
-          {showLeaderboard && (
-            <button 
-              onClick={() => navigate('/leaderboard')}
-              className="text-[#9CA3AF] hover:text-[#F9FAFB] transition-all flex items-center gap-[8px] text-[14px] font-medium"
-            >
-              <FiBarChart2 size={16} />
-              <span>Rankings</span>
-            </button>
-          )}
-
-          {isLoggedIn ? (
-            <Button 
-                variant="primary"
-                onClick={() => navigate(isAdmin ? '/admin' : '/profile')}
-            >
-              <FiLayout size={16} />
-              Dashboard
-            </Button>
-          ) : (
-            <div className="flex items-center gap-[16px]">
-              <Button 
-                variant="ghost"
-                onClick={() => navigate('/login')}
-              >
-                Log in
-              </Button>
-              
-              <Button 
-                variant="primary"
-                onClick={() => navigate('/register')}
-              >
-                Sign up
-              </Button>
+          {isLoggedIn && (
+            <div className="flex items-center gap-16 px-16 py-8 bg-brand-surface rounded-xl border border-brand-border">
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest leading-none">TEAM-CONNECTED</span>
+                <span className="text-[12px] font-mono font-bold text-brand-text-muted mt-4">ID: {teamId}</span>
+              </div>
+              <div className="w-32 h-32 rounded-lg bg-brand-primary/20 flex items-center justify-center text-brand-primary border border-brand-primary/30">
+                <FiLayout size={18} />
+              </div>
             </div>
           )}
         </div>

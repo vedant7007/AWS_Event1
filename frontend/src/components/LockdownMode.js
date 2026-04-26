@@ -39,13 +39,13 @@ const LockdownMode = ({ onTabSwitch, onWarning }) => {
       onWarning('Back navigation is disabled.');
     };
 
-    const handleCopy = (e) => { e.preventDefault(); alert('Copy-paste disabled.'); };
-    const handlePaste = (e) => { e.preventDefault(); alert('Copy-paste disabled.'); };
-    const handleContextMenu = (e) => { e.preventDefault(); alert('Right-click disabled.'); };
+    const handleCopy = (e) => { e.preventDefault(); onWarning('Copy-paste disabled.'); };
+    const handlePaste = (e) => { e.preventDefault(); onWarning('Copy-paste disabled.'); };
+    const handleContextMenu = (e) => { e.preventDefault(); onWarning('Right-click disabled.'); };
     const handleKeyDown = (e) => {
       if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
         e.preventDefault();
-        alert('Developer tools disabled.');
+        onWarning('Developer tools disabled.');
       }
     };
 

@@ -60,22 +60,11 @@ const RegisterPage = () => {
 
     try {
       const response = await authAPI.register(formData);
-      setSuccess('Registration successful. Redirecting...');
+      const teamId = response.data.teamId;
+      setSuccess(`Registration successful! TEAM ID: ${teamId}. Share this with the team members for login.`);
       
-      if (response.data.token) {
-        setAuth({
-          token: response.data.token,
-          userId: response.data.userId,
-          teamId: response.data.teamId,
-          teamName: response.data.teamName || formData.teamName,
-          memberName: response.data.memberName || formData.members[0].name,
-          role: response.data.role || formData.members[0].role,
-          currentYear: 0
-        });
-        setTimeout(() => navigate('/profile'), 1500);
-      } else {
-        setTimeout(() => navigate('/login'), 2000);
-      }
+      // Auto redirect after a longer delay so they can read the ID
+      setTimeout(() => navigate('/login'), 5000);
     } catch (err) {
       const errorData = err.response?.data;
       if (errorData?.details) {

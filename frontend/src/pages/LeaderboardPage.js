@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import Card from '../components/Card';
 import { leaderboardAPI } from '../utils/api';
-import { FiTrendingUp, FiActivity, FiUsers, FiAward, FiZap, FiTarget, FiSearch, FiRefreshCw } from 'react-icons/fi';
+import { FiTrendingUp, FiActivity, FiUsers, FiAward, FiZap, FiTarget, FiSearch, FiRefreshCw, FiClock } from 'react-icons/fi';
 
 const LeaderboardPage = () => {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -80,6 +80,63 @@ const LeaderboardPage = () => {
             </Card>
         )}
 
+        {/* Podium Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-[24px] mb-[48px] items-end mt-[20px]">
+            {/* Rank 2 */}
+            <div className="order-2 md:order-1 flex flex-col items-center">
+                {leaderboard[1] && (
+                    <div className="w-full flex flex-col items-center group">
+                        <div className="relative mb-[16px]">
+                            <div className="w-[80px] h-[80px] rounded-full bg-slate-400/20 border-2 border-slate-400/50 flex items-center justify-center text-[32px] shadow-[0_0_20px_rgba(148,163,184,0.2)] group-hover:scale-110 transition-all">🥈</div>
+                            <div className="absolute -top-[15px] left-1/2 -translate-x-1/2 text-[24px] rotate-[-15deg]">👑</div>
+                        </div>
+                        <div className="bg-[#111827] border border-slate-400/30 rounded-t-[16px] p-[24px] w-full text-center shadow-xl relative overflow-hidden h-[180px] flex flex-col justify-center">
+                            <div className="absolute inset-0 bg-slate-400/5 pointer-events-none"></div>
+                            <span className="text-12 font-black uppercase tracking-widest text-slate-400 mb-[8px] block">Runner Up</span>
+                            <h3 className="text-[20px] font-bold text-white mb-[12px] truncate px-[10px]">{leaderboard[1].teamName}</h3>
+                            <div className="text-[22px] font-mono font-bold text-slate-300">{leaderboard[1].scoreSum || 0} pts</div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Rank 1 */}
+            <div className="order-1 md:order-2 flex flex-col items-center">
+                {leaderboard[0] && (
+                    <div className="w-full flex flex-col items-center group">
+                        <div className="relative mb-[20px]">
+                            <div className="w-[100px] h-[100px] rounded-full bg-yellow-400/20 border-4 border-yellow-400/50 flex items-center justify-center text-[48px] shadow-[0_0_40px_rgba(250,204,21,0.3)] animate-bounce group-hover:scale-110 transition-all">🥇</div>
+                            <div className="absolute -top-[25px] left-1/2 -translate-x-1/2 text-[40px] drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]">👑</div>
+                        </div>
+                        <div className="bg-[#111827] border-2 border-yellow-400/30 rounded-t-[20px] p-[32px] w-full text-center shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden h-[240px] flex flex-col justify-center transform scale-105 z-20">
+                            <div className="absolute inset-0 bg-gradient-to-b from-yellow-400/10 to-transparent pointer-events-none"></div>
+                            <span className="text-14 font-black uppercase tracking-[0.3em] text-yellow-400 mb-[10px] block">Supreme Commander</span>
+                            <h3 className="text-[28px] font-bold text-white mb-[16px] truncate px-[10px]">{leaderboard[0].teamName}</h3>
+                            <div className="text-[32px] font-mono font-bold text-yellow-400 shadow-yellow-400/20 drop-shadow-lg">{leaderboard[0].scoreSum || 0} pts</div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Rank 3 */}
+            <div className="order-3 md:order-3 flex flex-col items-center">
+                {leaderboard[2] && (
+                    <div className="w-full flex flex-col items-center group">
+                        <div className="relative mb-[16px]">
+                            <div className="w-[70px] h-[70px] rounded-full bg-amber-600/20 border-2 border-amber-600/50 flex items-center justify-center text-[28px] shadow-[0_0_15px_rgba(180,83,9,0.2)] group-hover:scale-110 transition-all">🥉</div>
+                            <div className="absolute -top-[12px] left-1/2 -translate-x-1/2 text-[20px] rotate-[15deg]">👑</div>
+                        </div>
+                        <div className="bg-[#111827] border border-amber-600/30 rounded-t-[16px] p-[24px] w-full text-center shadow-xl relative overflow-hidden h-[150px] flex flex-col justify-center">
+                            <div className="absolute inset-0 bg-amber-600/5 pointer-events-none"></div>
+                            <span className="text-12 font-black uppercase tracking-widest text-amber-600 mb-[8px] block">Elite Unit</span>
+                            <h3 className="text-[18px] font-bold text-white mb-[8px] truncate px-[10px]">{leaderboard[2].teamName}</h3>
+                            <div className="text-[20px] font-mono font-bold text-amber-500">{leaderboard[2].scoreSum || 0} pts</div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+
         <Card className="overflow-hidden border-brand-border shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
@@ -103,15 +160,27 @@ const LeaderboardPage = () => {
                       <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">Deployment Status</span>
                     </div>
                   </th>
+                  <th className="px-16 py-24 text-center">
+                    <div className="flex items-center justify-center space-x-8">
+                       <FiActivity className="text-blue-400" size={16} />
+                       <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">Efficiency</span>
+                    </div>
+                  </th>
+                  <th className="px-16 py-24 text-center">
+                    <div className="flex items-center justify-center space-x-8">
+                       <FiClock className="text-orange-400" size={16} />
+                       <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">Avg Output Time</span>
+                    </div>
+                  </th>
                   {[0, 1, 2, 3, 4].map(y => (
                     <th key={y} className="px-16 py-24 text-right">
-                       <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">Q{y}</span>
+                       <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">R{y + 1}</span>
                     </th>
                   ))}
                   <th className="px-32 py-24 text-right">
                     <div className="flex items-center justify-end space-x-12">
                       <FiTrendingUp className="text-brand-primary" size={16} />
-                      <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">Consolidated P/L</span>
+                      <span className="text-brand-text-muted font-black uppercase tracking-[0.2em] text-10">Live Valuation</span>
                     </div>
                   </th>
                 </tr>
@@ -142,16 +211,26 @@ const LeaderboardPage = () => {
                         <span>{team.status}</span>
                       </span>
                     </td>
+                    <td className="px-16 py-24 text-center">
+                       <span className="font-mono font-bold text-blue-400 text-16">
+                          {team.avgEfficiency !== undefined ? `${team.avgEfficiency}%` : '0%'}
+                       </span>
+                    </td>
+                    <td className="px-16 py-24 text-center">
+                       <span className="font-mono font-bold text-orange-400 text-16">
+                          {team.totalTimeSpent !== undefined ? `${Math.floor(team.totalTimeSpent/60)}m ${team.totalTimeSpent%60}s` : '--'}
+                       </span>
+                    </td>
                     {[0, 1, 2, 3, 4].map(y => (
                       <td key={y} className="px-16 py-24 text-right">
                          <span className="font-mono font-bold text-brand-text-muted text-14">
-                            ${team[`year${y}Profit`]?.toLocaleString() || '—'}
+                             {team[`year${y}Points`] !== undefined ? `${team[`year${y}Points`]} pts` : '0 pts'}
                          </span>
                       </td>
                     ))}
                     <td className="px-32 py-24 text-right">
                       <span className={`text-28 font-bold font-mono tracking-tighter ${idx === 0 ? 'text-brand-primary' : 'text-brand-text-primary'}`}>
-                        ${team.cumulativeProfit?.toLocaleString() || '—'}
+                        {team.scoreSum || 0} pts
                       </span>
                     </td>
                   </tr>
