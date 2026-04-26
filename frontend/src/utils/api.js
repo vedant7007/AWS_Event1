@@ -1,7 +1,13 @@
 import axios from 'axios';
 import { useGameStore } from './store';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://aws-event1.linkpc.net/api';
+// The base domain of your AWS Backend
+const BASE_URL = process.env.REACT_APP_API_URL 
+  ? process.env.REACT_APP_API_URL.replace('/api', '') 
+  : 'https://aws-event1.linkpc.net';
+
+// The full API path (Ensures /api is ALWAYS present)
+const API_URL = `${BASE_URL}/api`;
 
 const apiClient = axios.create({
   baseURL: API_URL,
