@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import Header from '../components/Header';
 import Leaderboard from '../components/Leaderboard';
 import Button from '../components/Button';
 import Card from '../components/Card';

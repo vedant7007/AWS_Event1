@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import LockdownMode from '../components/LockdownMode';
-import Card from '../components/Card';
 import { useGameStore } from '../utils/store';
 import { questionsAPI, submissionsAPI, adminAPI, authAPI } from '../utils/api';
 import { 
@@ -71,7 +70,7 @@ const QuestionPage = () => {
     return () => {
         if (intervalId) clearInterval(intervalId);
     };
-  }, [year, role, teamId, navigate, questions.length, setCurrentQuestions, submitted]);
+  }, [year, role, teamId, navigate, questions.length, setCurrentQuestions, submitted, setNextRoundSettings, setTabSwitchWarnings]);
 
   useEffect(() => {
     if (!isAuthorized || submitted) return;
@@ -85,7 +84,7 @@ const QuestionPage = () => {
     if (timeLeft === 0 && !submitting && isAuthorized && !submitted) {
       handleSubmit();
     }
-  }, [timeLeft]);
+  }, [timeLeft, submitting, isAuthorized, submitted, handleSubmit]);
 
   const handleDisqualify = async (reason) => {
     if (submitting || submitted) return;

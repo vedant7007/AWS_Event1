@@ -107,7 +107,6 @@ const Leaderboard = () => {
                   </td>
                   {[0, 1, 2, 3, 4].map(y => {
                     const points = team[`year${y}Points`];
-                    const hasValue = points !== 0 && points !== undefined;
                     return (
                       <td key={y} className="px-[24px] py-[24px] text-center">
                         <span className={`font-mono text-14 ${points !== undefined ? 'text-brand-text-secondary' : 'text-brand-text-muted opacity-40'}`}>

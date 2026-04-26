@@ -5,7 +5,6 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import Header from '../components/Header';
 import { authAPI } from '../utils/api';
-import { useGameStore } from '../utils/store';
 import { FiAlertCircle, FiCheckCircle, FiLoader, FiCloud, FiDollarSign, FiTrendingUp } from 'react-icons/fi';
 
 const RegisterPage = () => {
