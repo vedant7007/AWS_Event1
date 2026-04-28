@@ -5,11 +5,12 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import { adminAPI } from '../utils/api';
 import { useGameStore } from '../utils/store';
-import { 
-    FiUsers, FiActivity, FiShield, FiPlus, FiTrash2, FiPlay, FiStopCircle, 
-    FiX, FiCheckCircle, FiAlertCircle, 
+import {
+    FiUsers, FiActivity, FiShield, FiPlus, FiTrash2, FiPlay, FiStopCircle,
+    FiX, FiCheckCircle, FiAlertCircle,
     FiEye, FiLock,
-    FiTrendingUp, FiUser, FiHome, FiTarget, FiCloud, FiZap, FiCircle, FiAward
+    FiTrendingUp, FiUser, FiHome, FiTarget, FiCloud, FiZap, FiCircle, FiAward,
+    FiRadio, FiBarChart2, FiRefreshCw, FiSend
 } from 'react-icons/fi';
 
 const AdminDashboard = () => {
@@ -27,6 +28,9 @@ const AdminDashboard = () => {
     { id: 'r4', label: 'Round 4', icon: <FiTarget />, year: 3 },
     { id: 'r5', label: 'Round 5', icon: <FiTarget />, year: 4 },
     { id: 'register', label: 'Provision Units', icon: <FiPlus /> },
+    { id: 'broadcast', label: 'Broadcast', icon: <FiRadio /> },
+    { id: 'analytics', label: 'Analytics', icon: <FiBarChart2 /> },
+    { id: 'recovery', label: 'Recovery', icon: <FiRefreshCw /> },
   ];
 
   const [settings, setSettings] = useState(null);
@@ -37,7 +41,21 @@ const AdminDashboard = () => {
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [editingQId, setEditingQId] = useState(null); // Tracking the question being edited
   const [activeRoleFilter, setActiveRoleFilter] = useState('cto'); 
-  const [selectedTeam, setSelectedTeam] = useState(null); // For detailed team analysis
+  const [selectedTeam, setSelectedTeam] = useState(null);
+
+  // Broadcast state
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [broadcastType, setBroadcastType] = useState('info');
+  const [broadcastHistory, setBroadcastHistory] = useState([]);
+
+  // Analytics state
+  const [analytics, setAnalytics] = useState([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  // Session recovery state
+  const [recoveryTeamId, setRecoveryTeamId] = useState('');
+  const [recoveryRole, setRecoveryRole] = useState('cto');
+  const [recoveryYear, setRecoveryYear] = useState(0);
 
   // Admin creation state
   const [newAdmin, setNewAdmin] = useState({
@@ -1325,6 +1343,239 @@ const AdminDashboard = () => {
                             </form>
                         </Card>
                     )}
+                </div>
+            )}
+            {activeTab === 'broadcast' && (
+                <div className="flex flex-col gap-[32px] animate-in fade-in duration-500">
+                    <div>
+                        <h2 className="text-[32px] font-semibold text-[#F9FAFB] tracking-tight">Broadcast Center</h2>
+                        <p className="text-[14px] text-[#9CA3AF] mt-[4px]">Send real-time announcements to all connected players.</p>
+                    </div>
+
+                    <Card className="p-[32px]">
+                        <div className="flex flex-col gap-[24px]">
+                            <div className="flex flex-col gap-[8px]">
+                                <label className="text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest">Message</label>
+                                <textarea
+                                    value={broadcastMsg}
+                                    onChange={e => setBroadcastMsg(e.target.value)}
+                                    placeholder="Enter your announcement..."
+                                    className="w-full px-[16px] py-[12px] bg-[#111827] border border-[#1F2937] rounded-[8px] text-[14px] text-[#F9FAFB] min-h-[100px] focus:border-[#7C3AED] focus:outline-none transition-all"
+                                />
+                            </div>
+                            <div className="flex items-center gap-[16px]">
+                                <div className="flex bg-[#111827] rounded-[8px] p-[4px] border border-[#1F2937]">
+                                    {['info', 'warning', 'danger'].map(t => (
+                                        <button
+                                            key={t}
+                                            onClick={() => setBroadcastType(t)}
+                                            className={`px-[16px] py-[6px] rounded-[6px] text-[12px] font-bold uppercase transition-all ${
+                                                broadcastType === t
+                                                    ? t === 'danger' ? 'bg-red-500 text-white' : t === 'warning' ? 'bg-amber-500 text-black' : 'bg-[#7C3AED] text-white'
+                                                    : 'text-[#9CA3AF] hover:text-white'
+                                            }`}
+                                        >
+                                            {t}
+                                        </button>
+                                    ))}
+                                </div>
+                                <Button
+                                    onClick={async () => {
+                                        if (!broadcastMsg.trim()) return;
+                                        try {
+                                            await adminAPI.broadcast(broadcastMsg, broadcastType);
+                                            setBroadcastHistory(prev => [{ message: broadcastMsg, type: broadcastType, timestamp: new Date() }, ...prev]);
+                                            setBroadcastMsg('');
+                                            setMsg({ type: 'success', text: 'Broadcast sent to all players.' });
+                                        } catch {
+                                            setMsg({ type: 'error', text: 'Failed to send broadcast.' });
+                                        }
+                                    }}
+                                    className="px-[24px]"
+                                >
+                                    <FiSend size={16} className="mr-[8px]" /> Send Broadcast
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+
+                    {broadcastHistory.length > 0 && (
+                        <Card className="p-[32px]">
+                            <h3 className="text-[16px] font-bold text-[#F9FAFB] mb-[16px] uppercase tracking-wider">Sent This Session</h3>
+                            <div className="flex flex-col gap-[12px]">
+                                {broadcastHistory.map((b, i) => (
+                                    <div key={i} className={`p-[16px] rounded-[8px] border flex items-start gap-[12px] ${
+                                        b.type === 'danger' ? 'bg-red-500/5 border-red-500/20' :
+                                        b.type === 'warning' ? 'bg-amber-500/5 border-amber-500/20' :
+                                        'bg-[#7C3AED]/5 border-[#7C3AED]/20'
+                                    }`}>
+                                        <FiRadio className={b.type === 'danger' ? 'text-red-400' : b.type === 'warning' ? 'text-amber-400' : 'text-[#7C3AED]'} size={16} />
+                                        <div className="flex-1">
+                                            <p className="text-[14px] text-[#F9FAFB]">{b.message}</p>
+                                            <span className="text-[10px] text-[#9CA3AF] font-mono mt-[4px] block">{new Date(b.timestamp).toLocaleTimeString()}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </Card>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'analytics' && (
+                <div className="flex flex-col gap-[32px] animate-in fade-in duration-500">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-[32px] font-semibold text-[#F9FAFB] tracking-tight">Question Analytics</h2>
+                            <p className="text-[14px] text-[#9CA3AF] mt-[4px]">Per-question response data across all teams.</p>
+                        </div>
+                        <Button
+                            onClick={async () => {
+                                setAnalyticsLoading(true);
+                                try {
+                                    const res = await adminAPI.getAnalytics();
+                                    setAnalytics(res.data);
+                                } catch {
+                                    setMsg({ type: 'error', text: 'Failed to load analytics.' });
+                                }
+                                setAnalyticsLoading(false);
+                            }}
+                            className="px-[24px]"
+                        >
+                            <FiBarChart2 size={16} className="mr-[8px]" /> {analyticsLoading ? 'Loading...' : 'Refresh Data'}
+                        </Button>
+                    </div>
+
+                    {analytics.length === 0 ? (
+                        <Card className="p-[48px] text-center">
+                            <FiBarChart2 size={48} className="text-[#1F2937] mx-auto mb-[16px]" />
+                            <p className="text-[14px] text-[#9CA3AF]">Click "Refresh Data" to load question analytics.</p>
+                        </Card>
+                    ) : (
+                        <div className="flex flex-col gap-[16px]">
+                            {[0,1,2,3,4].map(year => {
+                                const yearQs = analytics.filter(a => a.year === year);
+                                if (yearQs.length === 0) return null;
+                                return (
+                                    <Card key={year} className="p-[24px]">
+                                        <h3 className="text-[16px] font-bold text-[#F9FAFB] mb-[16px] uppercase tracking-wider border-b border-[#1F2937] pb-[12px]">Round {year + 1}</h3>
+                                        <div className="flex flex-col gap-[12px]">
+                                            {yearQs.map((q, idx) => (
+                                                <div key={idx} className="p-[16px] bg-[#111827] rounded-[8px] border border-[#1F2937]">
+                                                    <div className="flex items-start justify-between gap-[16px] mb-[12px]">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-[8px] mb-[4px]">
+                                                                <span className="text-[10px] font-bold text-[#7C3AED] uppercase bg-[#7C3AED]/10 px-[8px] py-[2px] rounded border border-[#7C3AED]/20">{q.role}</span>
+                                                                <span className="text-[10px] font-medium text-[#9CA3AF] uppercase">{q.type}</span>
+                                                            </div>
+                                                            <p className="text-[14px] text-[#F9FAFB] font-medium">{q.question}...</p>
+                                                        </div>
+                                                        <div className="flex items-center gap-[16px] shrink-0">
+                                                            <div className="text-center">
+                                                                <div className="text-[20px] font-bold font-mono text-[#F9FAFB]">{q.totalAnswered}</div>
+                                                                <div className="text-[9px] text-[#9CA3AF] uppercase">Answered</div>
+                                                            </div>
+                                                            <div className="text-center">
+                                                                <div className={`text-[20px] font-bold font-mono ${q.accuracy >= 70 ? 'text-emerald-400' : q.accuracy >= 40 ? 'text-amber-400' : 'text-red-400'}`}>{q.accuracy}%</div>
+                                                                <div className="text-[9px] text-[#9CA3AF] uppercase">Accuracy</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="w-full h-[4px] bg-[#1F2937] rounded-full overflow-hidden">
+                                                        <div className={`h-full rounded-full transition-all ${q.accuracy >= 70 ? 'bg-emerald-500' : q.accuracy >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${q.accuracy}%` }} />
+                                                    </div>
+                                                    {Object.keys(q.optionCounts).length > 0 && (
+                                                        <div className="flex gap-[8px] mt-[12px] flex-wrap">
+                                                            {Object.entries(q.optionCounts).map(([opt, count]) => (
+                                                                <span key={opt} className="text-[11px] font-mono bg-[#0B0F14] border border-[#1F2937] px-[8px] py-[4px] rounded text-[#9CA3AF]">
+                                                                    {opt}: <span className="text-[#F9FAFB] font-bold">{count}</span>
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'recovery' && (
+                <div className="flex flex-col gap-[32px] animate-in fade-in duration-500 max-w-[600px]">
+                    <div>
+                        <h2 className="text-[32px] font-semibold text-[#F9FAFB] tracking-tight">Session Recovery</h2>
+                        <p className="text-[14px] text-[#9CA3AF] mt-[4px]">Recover disqualified players so they can re-enter a round. Only works for players who were auto-disqualified (not already submitted).</p>
+                    </div>
+
+                    <Card className="p-[32px]">
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            try {
+                                const res = await adminAPI.recoverSession(recoveryTeamId, recoveryRole, recoveryYear);
+                                setMsg({ type: 'success', text: res.data.message });
+                            } catch (err) {
+                                setMsg({ type: 'error', text: err.response?.data?.error || 'Recovery failed.' });
+                            }
+                        }} className="flex flex-col gap-[24px]">
+                            <div className="flex flex-col gap-[8px]">
+                                <label className="text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest">Team ID</label>
+                                <select
+                                    value={recoveryTeamId}
+                                    onChange={e => setRecoveryTeamId(e.target.value)}
+                                    className="w-full px-[16px] py-[12px] bg-[#111827] border border-[#1F2937] rounded-[8px] text-[14px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all"
+                                    required
+                                >
+                                    <option value="">Select team...</option>
+                                    {teams.map(t => (
+                                        <option key={t.teamId} value={t.teamId}>{t.teamName} ({t.teamId})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-[16px]">
+                                <div className="flex flex-col gap-[8px]">
+                                    <label className="text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest">Role</label>
+                                    <select
+                                        value={recoveryRole}
+                                        onChange={e => setRecoveryRole(e.target.value)}
+                                        className="w-full px-[16px] py-[12px] bg-[#111827] border border-[#1F2937] rounded-[8px] text-[14px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all"
+                                    >
+                                        <option value="cto">CTO</option>
+                                        <option value="cfo">CFO</option>
+                                        <option value="pm">PM</option>
+                                    </select>
+                                </div>
+                                <div className="flex flex-col gap-[8px]">
+                                    <label className="text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest">Round</label>
+                                    <select
+                                        value={recoveryYear}
+                                        onChange={e => setRecoveryYear(Number(e.target.value))}
+                                        className="w-full px-[16px] py-[12px] bg-[#111827] border border-[#1F2937] rounded-[8px] text-[14px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all"
+                                    >
+                                        {[0,1,2,3,4].map(y => (
+                                            <option key={y} value={y}>Round {y + 1}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <Button type="submit" className="w-full">
+                                <FiRefreshCw size={16} className="mr-[8px]" /> Recover Session
+                            </Button>
+                        </form>
+                    </Card>
+
+                    <Card className="p-[24px] border-amber-500/20 bg-amber-500/5">
+                        <div className="flex items-start gap-[12px]">
+                            <FiAlertCircle className="text-amber-400 shrink-0 mt-[2px]" size={18} />
+                            <div>
+                                <p className="text-[14px] font-bold text-amber-400 mb-[4px]">Important</p>
+                                <p className="text-[13px] text-[#9CA3AF] leading-relaxed">This will clear the disqualification flag and allow the player to re-enter the round. It will NOT recover their previous answers — they start fresh. Only use this for legitimate technical issues (browser crash, network failure).</p>
+                            </div>
+                        </div>
+                    </Card>
                 </div>
             )}
         </div>

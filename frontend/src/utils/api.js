@@ -59,7 +59,10 @@ export const adminAPI = {
   updateQuestion: (id, qData) => apiClient.put(`/admin/questions/${id}`, qData),
   deleteQuestion: (id) => apiClient.delete(`/admin/questions/${id}`),
   createAdmin: (adminData) => apiClient.post('/admin/create-admin', adminData),
-  registerTeam: (teamData) => apiClient.post('/auth/register', teamData)
+  registerTeam: (teamData) => apiClient.post('/auth/register', teamData),
+  broadcast: (message, type) => apiClient.post('/admin/broadcast', { message, type }),
+  getAnalytics: () => apiClient.get('/admin/analytics'),
+  recoverSession: (teamId, role, year) => apiClient.post('/admin/session-recovery', { teamId, role, year })
 };
 
 

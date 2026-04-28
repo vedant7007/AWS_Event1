@@ -228,4 +228,136 @@ router.post('/create-admin', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
+/**
+ * POST /api/admin/broadcast
+ * Send announcement to all connected clients (stored in settings for polling)
+ */
+router.post('/broadcast', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { message, type } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message required' });
+
+    const settings = await GameSettings.findOneAndUpdate(
+      { id: 'global_settings' },
+      {
+        $push: {
+          broadcasts: {
+            $each: [{ message, type: type || 'info', timestamp: new Date() }],
+            $slice: -50
+          }
+        }
+      },
+      { new: true, upsert: true }
+    );
+
+    if (isRedisReady()) {
+      await redisClient.del('global:settings');
+    }
+
+    res.status(200).json({ success: true, broadcast: settings.broadcasts?.slice(-1)[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/admin/analytics
+ * Per-question analytics: how many answered, how many got each option
+ */
+router.get('/analytics', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const questions = await Question.find().sort({ year: 1, role: 1 });
+    const teams = await Team.find({ teamId: { $ne: 'ADMIN-EVENT-2026' } }, 'gameState');
+
+    const analytics = questions.map(q => {
+      const yearKey = `year${q.year}`;
+      let totalAnswered = 0;
+      let totalCorrect = 0;
+      const optionCounts = {};
+
+      teams.forEach(team => {
+        const roleAnswers = team.gameState?.[yearKey]?.answers?.[q.role];
+        if (!roleAnswers || typeof roleAnswers !== 'object') return;
+
+        const answer = roleAnswers[q.questionId];
+        if (answer === undefined || answer === '') return;
+
+        totalAnswered++;
+
+        if (q.type === 'mcq' || q.type === 'truefalse') {
+          optionCounts[answer] = (optionCounts[answer] || 0) + 1;
+          if (answer === q.correctAnswer) totalCorrect++;
+        } else if (q.type === 'multi-select') {
+          const correct = Array.isArray(q.correctAnswer) ? q.correctAnswer : [];
+          if (Array.isArray(answer)) {
+            answer.forEach(a => { optionCounts[a] = (optionCounts[a] || 0) + 1; });
+            if (JSON.stringify([...answer].sort()) === JSON.stringify([...correct].sort())) totalCorrect++;
+          }
+        } else {
+          totalCorrect++;
+        }
+      });
+
+      return {
+        questionId: q.questionId,
+        question: q.question?.substring(0, 80),
+        type: q.type,
+        year: q.year,
+        role: q.role,
+        totalTeams: teams.length,
+        totalAnswered,
+        totalCorrect,
+        accuracy: totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0,
+        optionCounts
+      };
+    });
+
+    res.status(200).json(analytics);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/admin/session-recovery
+ * Admin grants a player access to re-enter their session
+ */
+router.post('/session-recovery', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { teamId, role, year } = req.body;
+    if (!teamId || !role || year === undefined) {
+      return res.status(400).json({ error: 'teamId, role, and year are required' });
+    }
+
+    const team = await Team.findOne({ teamId });
+    if (!team) return res.status(404).json({ error: 'Team not found' });
+
+    const yearKey = `year${year}`;
+    const answers = team.gameState?.[yearKey]?.answers?.[role.toLowerCase()];
+
+    if (answers?.disqualified) {
+      team.gameState[yearKey].answers[role.toLowerCase()] = {};
+      if (team.gameState[yearKey].scores) {
+        team.gameState[yearKey].scores[role.toLowerCase()] = 0;
+      }
+      team.markModified('gameState');
+      await team.save();
+
+      if (isRedisReady()) {
+        await redisClient.del('leaderboard:global');
+      }
+
+      return res.status(200).json({ success: true, message: `Session recovered for ${role} in ${teamId}. Player can re-enter round ${parseInt(year) + 1}.` });
+    }
+
+    if (answers && Object.keys(answers).length > 0) {
+      return res.status(400).json({ error: 'Player already submitted answers. Cannot recover a completed session.' });
+    }
+
+    res.status(200).json({ success: true, message: 'No recovery needed — player has not been disqualified or submitted.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

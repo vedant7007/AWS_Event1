@@ -11,9 +11,8 @@ const {
   checkSuspiciousPatterns,
   formatCompanyState
 } = require('../utils/helpers');
-const { 
-  calculateYear2StartingState,
-  calculateYear3StartingState,
+const {
+  calculateNextYearStartingState,
   applyMarketEvent
 } = require('../utils/cascadeLogic');
 const { redisClient, isRedisReady } = require('../utils/redis');
@@ -140,41 +139,39 @@ router.post('/:year', verifyToken, async (req, res) => {
 async function processYearCompletion(teamId, year) {
   const team = await Team.findOne({ teamId });
   const yearKey = `year${year}`;
+  const FINAL_YEAR = 4;
+  const TOTAL_YEARS = 5;
 
-  // Aggregate all role scores (Sum of 3 roles for round total)
-  const roundTotal = 
+  const roundTotal =
     (team.gameState[yearKey].scores.cto || 0) +
     (team.gameState[yearKey].scores.cfo || 0) +
     (team.gameState[yearKey].scores.pm || 0);
-  
+
   const avgTimeSpent = (
     (team.gameState[yearKey].timeSpent?.cto || 0) +
     (team.gameState[yearKey].timeSpent?.cfo || 0) +
     (team.gameState[yearKey].timeSpent?.pm || 0)
   ) / 3;
 
-  // Output Time is the raw average time spent by the 3 roles (used for tie-breaking)
   const outputTime = Math.round(avgTimeSpent);
 
   if (!team.gameState[yearKey].timeSpent) {
-      team.gameState[yearKey].timeSpent = { cto: 0, cfo: 0, pm: 0 };
+    team.gameState[yearKey].timeSpent = { cto: 0, cfo: 0, pm: 0 };
   }
   team.gameState[yearKey].timeSpent.outputTime = outputTime;
-  team.gameState[yearKey].scores.roundAvg = roundTotal; // Store total in roundAvg for legacy compat or rename
+  team.gameState[yearKey].scores.roundAvg = roundTotal;
 
   team.points = (team.points || 0) + roundTotal;
 
-  // Initialize company state for year 1
-  if (year === 1) {
-    team.gameState[yearKey].companyState = {
-      monthlyBill: 7400, // After cost cuts from answers
-      monthlyRevenue: 12000,
-      cumulativeProfit: -26400,
-      runwayMonths: 12
-    };
+  const defaultCompanyStates = {
+    0: { monthlyBill: 8500, monthlyRevenue: 10000, cumulativeProfit: -30000, runwayMonths: 14 },
+    1: { monthlyBill: 7400, monthlyRevenue: 12000, cumulativeProfit: -26400, runwayMonths: 12 },
+  };
+
+  if (defaultCompanyStates[year] && (!team.gameState[yearKey].companyState || !team.gameState[yearKey].companyState.monthlyBill)) {
+    team.gameState[yearKey].companyState = defaultCompanyStates[year];
   }
 
-  // Apply market event
   const event = await applyMarketEvent(teamId, year, `EVENT_YEAR${year}`);
   if (event && event.impact) {
     team.gameState[yearKey].marketEvent = {
@@ -183,48 +180,44 @@ async function processYearCompletion(teamId, year) {
       description: event.event.description
     };
 
-    const yearState = team.gameState[yearKey].companyState;
-    yearState.cumulativeProfit += event.impact.penalty;
+    if (team.gameState[yearKey].companyState) {
+      team.gameState[yearKey].companyState.cumulativeProfit += event.impact.penalty;
+    }
   }
 
-  // Calculate next year starting state if not final year
-  if (year < 3) {
+  if (year < FINAL_YEAR) {
     const nextYear = year + 1;
     const nextYearKey = `year${nextYear}`;
-    
-    if (year === 1) {
-      team.gameState[nextYearKey].companyState = 
-        await calculateYear2StartingState(team.gameState[yearKey].answers, team.gameState[yearKey].companyState);
-    } else if (year === 2) {
-      team.gameState[nextYearKey].companyState = 
-        await calculateYear3StartingState(team.gameState[yearKey].answers, team.gameState[yearKey].companyState);
+
+    if (team.gameState[yearKey].companyState) {
+      team.gameState[nextYearKey].companyState =
+        await calculateNextYearStartingState(year, team.gameState[yearKey].answers, team.gameState[yearKey].companyState);
     }
 
     team.currentYear = nextYear;
   } else {
-    // Final year completed
     team.eventStatus = 'completed';
   }
 
-  const currentProfit = team.gameState[yearKey].companyState.cumulativeProfit || 0;
-  
+  const currentProfit = team.gameState[yearKey].companyState?.cumulativeProfit || 0;
+
   if (!team.finalScore) {
-      team.finalScore = { cumulativeProfit: currentProfit, totalScore: roundAvg };
+    team.finalScore = { cumulativeProfit: currentProfit, totalScore: roundTotal };
   } else {
-      team.finalScore.cumulativeProfit = currentProfit;
-      if (year === 3) {
-        team.finalScore.totalScore = Math.round((
-            team.gameState.year1.scores.cto +
-            team.gameState.year2.scores.cto +
-            team.gameState.year3.scores.cto +
-            team.gameState.year1.scores.cfo +
-            team.gameState.year2.scores.cfo +
-            team.gameState.year3.scores.cfo +
-            team.gameState.year1.scores.pm +
-            team.gameState.year2.scores.pm +
-            team.gameState.year3.scores.pm
-        ) / 9);
+    team.finalScore.cumulativeProfit = currentProfit;
+  }
+
+  if (year === FINAL_YEAR) {
+    let totalScore = 0;
+    let roleCount = 0;
+    for (let y = 0; y <= FINAL_YEAR; y++) {
+      const yd = team.gameState[`year${y}`];
+      if (yd?.scores) {
+        totalScore += (yd.scores.cto || 0) + (yd.scores.cfo || 0) + (yd.scores.pm || 0);
+        roleCount += 3;
       }
+    }
+    team.finalScore.totalScore = roleCount > 0 ? Math.round(totalScore / roleCount) : 0;
   }
 
   await team.save();

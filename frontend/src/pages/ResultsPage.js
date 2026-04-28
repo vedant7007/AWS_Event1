@@ -1,16 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { useGameStore } from '../utils/store';
 import { FiAward, FiTrendingUp, FiActivity, FiUsers, FiInfo, FiBarChart2, FiHome, FiCheckCircle, FiStar, FiZap } from 'react-icons/fi';
+import confetti from 'canvas-confetti';
+
+const useCountUp = (target, duration = 2000) => {
+  const [value, setValue] = useState(0);
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    const startTime = Date.now();
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(eased * target));
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+    requestAnimationFrame(animate);
+  }, [target, duration]);
+
+  return value;
+};
 
 const ResultsPage = () => {
   const navigate = useNavigate();
   const { teamName, gameState } = useGameStore();
 
   const finalProfit = gameState?.year4?.companyState?.cumulativeProfit || 0;
+  const displayProfit = useCountUp(finalProfit, 2500);
+  const confettiFired = useRef(false);
+
+  useEffect(() => {
+    if (confettiFired.current) return;
+    confettiFired.current = true;
+    const end = Date.now() + 3000;
+    const fire = () => {
+      confetti({ particleCount: 60, spread: 120, origin: { y: 0.4 }, colors: ['#7C3AED', '#10B981', '#F59E0B', '#EF4444', '#3B82F6'] });
+      if (Date.now() < end) setTimeout(fire, 400);
+    };
+    setTimeout(fire, 500);
+  }, []);
 
   const getAward = () => {
     if (finalProfit > 200000) return { icon: <FiStar size={64} className="text-yellow-400" />, title: 'Market Dominator', color: 'text-yellow-400', bg: 'bg-yellow-400/10' };
@@ -53,7 +88,7 @@ const ResultsPage = () => {
             
             <p className="text-12 font-bold text-brand-text-muted uppercase tracking-[0.3em] mb-24">Final Consolidated Valuation</p>
             <div className={`text-96 font-bold mb-16 font-mono tracking-tighter transition-all duration-500 ${finalProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                ₹{finalProfit.toLocaleString()}
+                ₹{displayProfit.toLocaleString()}
             </div>
             <p className="text-16 text-brand-text-muted font-medium max-w-xl mx-auto leading-relaxed">
                 Aggregated fiscal performance spanning the 5-year initial operational cycle (Q0 - Q4 Consolidation).

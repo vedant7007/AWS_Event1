@@ -12,7 +12,7 @@ const marketEventSchema = new mongoose.Schema({
   },
   year: {
     type: Number,
-    enum: [1, 2, 3],
+    enum: [0, 1, 2, 3, 4],
     required: true
   },
   description: String,
