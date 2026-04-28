@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { leaderboardAPI } from '../utils/api';
-import { FiTrendingUp, FiActivity, FiUsers, FiAward, FiZap, FiClock, FiRefreshCw } from 'react-icons/fi';
+import { FiTrendingUp, FiActivity, FiUsers, FiAward, FiZap, FiRefreshCw } from 'react-icons/fi';
 import Card from './Card';
 
 const Leaderboard = () => {

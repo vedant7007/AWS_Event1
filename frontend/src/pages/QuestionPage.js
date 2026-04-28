@@ -138,6 +138,12 @@ const QuestionPage = () => {
     }
   }, [timeLeft, submitting, isAuthorized, submitted, handleSubmit]);
 
+  const setAnswerInternal = useCallback((questionId, answer) => {
+    if (submitted) return;
+    setAnswer(questionId, answer);
+    setError('');
+  }, [submitted, setAnswer]);
+
   // Keyboard navigation
   useEffect(() => {
     if (loading || submitted) return;
@@ -169,7 +175,7 @@ const QuestionPage = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [loading, submitted, currentIndex, questions, answers]);
+  }, [loading, submitted, currentIndex, questions, answers, setAnswerInternal]);
 
   const handleDisqualify = async (reason) => {
     if (submitting || submitted) return;
@@ -187,12 +193,6 @@ const QuestionPage = () => {
   const handleTabSwitch = (count, reason) => {
     setTabSwitchWarnings(count);
     if (count >= 3) handleDisqualify(reason || 'Security Violation');
-  };
-
-  const setAnswerInternal = (questionId, answer) => {
-    if (submitted) return;
-    setAnswer(questionId, answer);
-    setError('');
   };
 
   const progressPercent = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
