@@ -27,12 +27,12 @@ export default function PasswordInput({
           placeholder={placeholder}
           required={required}
           name={name}
-          className={`w-full bg-[#0F172A] border border-[#1F2937] rounded-[10px] px-[14px] py-[12px] text-[14px] text-[#F9FAFB] focus:border-[#7C3AED] focus:shadow-glow focus:outline-none transition-all placeholder:text-[#9CA3AF] ${className}`}
+          className={`w-full bg-brand-bg border border-brand-border rounded-xl px-14 py-12 text-14 text-brand-text-primary focus:border-brand-primary focus:shadow-glow focus:outline-none transition-all placeholder:text-brand-text-muted ${className}`}
         />
         <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-[14px] top-1/2 transform -translate-y-1/2 text-[#9CA3AF] hover:text-[#F9FAFB] transition-colors focus:outline-none"
+          className="absolute right-14 top-1/2 transform -translate-y-1/2 text-brand-text-muted hover:text-brand-text-primary transition-colors focus:outline-none"
           title={showPassword ? 'Hide Access Key' : 'Show Access Key'}
         >
           {showPassword ? (

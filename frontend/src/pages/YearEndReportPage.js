@@ -4,7 +4,31 @@ import Header from '../components/Header';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { useGameStore } from '../utils/store';
-import { FiTrendingUp, FiDollarSign, FiActivity, FiBriefcase, FiAlertTriangle, FiCheckCircle, FiBarChart2, FiArrowRight, FiBell } from 'react-icons/fi';
+import { FiTrendingUp, FiDollarSign, FiActivity, FiBriefcase, FiAlertTriangle, FiCheckCircle, FiBarChart2, FiArrowRight, FiBell, FiUsers } from 'react-icons/fi';
+
+const MiniSparkline = ({ data, color = '#7C3AED', height = 40 }) => {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data.map(Math.abs), 1);
+  const min = Math.min(...data);
+  const range = Math.max(max - min, 1);
+  const w = 100;
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = height - ((v - min) / range) * (height - 4) - 2;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg width={w} height={height} className="overflow-visible">
+      <polyline fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" points={points} />
+      {data.map((v, i) => {
+        const x = (i / (data.length - 1)) * w;
+        const y = height - ((v - min) / range) * (height - 4) - 2;
+        return <circle key={i} cx={x} cy={y} r="3" fill={color} opacity={i === data.length - 1 ? 1 : 0.4} />;
+      })}
+    </svg>
+  );
+};
 
 const YearEndReportPage = () => {
   const { year } = useParams();
@@ -56,39 +80,61 @@ const YearEndReportPage = () => {
 
             {/* KPI Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-24 mb-48">
-                {[
-                    { 
-                        label: 'Monthly Revenue', 
-                        value: `₹${yearData.companyState?.monthlyRevenue?.toLocaleString()}`,
-                        icon: <FiTrendingUp />,
-                        color: 'text-emerald-400',
-                        bg: 'bg-emerald-500/10'
-                    },
-                    { 
-                        label: 'Monthly AWS Bill', 
-                        value: `₹${yearData.companyState?.monthlyBill?.toLocaleString()}`,
-                        icon: <FiDollarSign />,
-                        color: 'text-red-400',
-                        bg: 'bg-red-500/10'
-                    },
-                    { 
-                        label: 'Cumulative Profit', 
-                        value: `₹${yearData.companyState?.cumulativeProfit?.toLocaleString()}`,
-                        icon: <FiActivity />,
-                        color: yearData.companyState?.cumulativeProfit >= 0 ? 'text-brand-primary' : 'text-amber-400',
-                        bg: yearData.companyState?.cumulativeProfit >= 0 ? 'bg-brand-primary/10' : 'bg-amber-500/10'
-                    }
-                ].map((metric, idx) => (
-                    <Card key={idx} className="p-32 flex flex-col items-center text-center group hover:border-brand-primary/30 transition-all shadow-xl">
-                        <div className={`${metric.bg} ${metric.color} p-16 rounded-2xl mb-24 transition-transform group-hover:scale-110 shadow-lg`}>
-                            {React.cloneElement(metric.icon, { size: 32 })}
-                        </div>
-                        <div className="text-40 font-semibold text-brand-text-primary mb-8 font-mono tracking-tighter">
-                            {metric.value}
-                        </div>
-                        <p className="text-12 font-bold text-brand-text-muted uppercase tracking-widest">{metric.label}</p>
-                    </Card>
-                ))}
+                {(() => {
+                    const revenue = yearData.companyState?.monthlyRevenue || 0;
+                    const bill = yearData.companyState?.monthlyBill || 0;
+                    const profit = yearData.companyState?.cumulativeProfit || 0;
+                    const maxVal = Math.max(revenue, bill, Math.abs(profit), 1);
+
+                    return [
+                        {
+                            label: 'Monthly Revenue',
+                            value: `₹${revenue.toLocaleString()}`,
+                            raw: revenue,
+                            icon: <FiTrendingUp />,
+                            color: 'text-emerald-400',
+                            bg: 'bg-emerald-500/10',
+                            barColor: 'bg-emerald-500',
+                            percent: (revenue / maxVal) * 100
+                        },
+                        {
+                            label: 'Monthly AWS Bill',
+                            value: `₹${bill.toLocaleString()}`,
+                            raw: bill,
+                            icon: <FiDollarSign />,
+                            color: 'text-red-400',
+                            bg: 'bg-red-500/10',
+                            barColor: 'bg-red-500',
+                            percent: (bill / maxVal) * 100
+                        },
+                        {
+                            label: 'Cumulative Profit',
+                            value: `₹${profit.toLocaleString()}`,
+                            raw: profit,
+                            icon: <FiActivity />,
+                            color: profit >= 0 ? 'text-brand-primary' : 'text-amber-400',
+                            bg: profit >= 0 ? 'bg-brand-primary/10' : 'bg-amber-500/10',
+                            barColor: profit >= 0 ? 'bg-brand-primary' : 'bg-amber-500',
+                            percent: (Math.abs(profit) / maxVal) * 100
+                        }
+                    ].map((metric, idx) => (
+                        <Card key={idx} className="p-32 flex flex-col items-center text-center group hover:border-brand-primary/30 transition-all shadow-xl">
+                            <div className={`${metric.bg} ${metric.color} p-16 rounded-2xl mb-24 transition-transform group-hover:scale-110 shadow-lg`}>
+                                {React.cloneElement(metric.icon, { size: 32 })}
+                            </div>
+                            <div className="text-40 font-semibold text-brand-text-primary mb-8 font-mono tracking-tighter">
+                                {metric.value}
+                            </div>
+                            <p className="text-12 font-bold text-brand-text-muted uppercase tracking-widest mb-16">{metric.label}</p>
+                            <div className="w-full h-[6px] bg-brand-elevated rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full ${metric.barColor} rounded-full transition-all duration-1000 ease-out`}
+                                    style={{ width: `${Math.min(metric.percent, 100)}%` }}
+                                />
+                            </div>
+                        </Card>
+                    ));
+                })()}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-32 mb-64">
@@ -168,20 +214,99 @@ const YearEndReportPage = () => {
                             <FiActivity className="text-brand-primary" size={20} />
                             <h3 className="text-12 font-bold uppercase tracking-widest">Unit Performance Rank</h3>
                         </div>
-                        <div className="grid grid-cols-3 gap-16">
+                        <div className="space-y-16">
                             {[
-                                { role: 'cto', color: 'text-brand-primary', score: yearData.scores?.cto },
-                                { role: 'cfo', color: 'text-emerald-400', score: yearData.scores?.cfo },
-                                { role: 'pm', color: 'text-purple-400', score: yearData.scores?.pm }
+                                { role: 'CTO', color: 'text-brand-primary', barColor: 'bg-brand-primary', score: yearData.scores?.cto },
+                                { role: 'CFO', color: 'text-emerald-400', barColor: 'bg-emerald-500', score: yearData.scores?.cfo },
+                                { role: 'PM', color: 'text-purple-400', barColor: 'bg-purple-500', score: yearData.scores?.pm }
                             ].map((s, idx) => (
-                                <div key={idx} className="text-center space-y-4">
-                                    <div className={`text-24 font-bold font-mono ${s.color}`}>{s.score || 0}%</div>
-                                    <p className="text-10 font-bold text-brand-text-muted uppercase tracking-tighter">{s.role}</p>
+                                <div key={idx} className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-10 font-bold text-brand-text-muted uppercase tracking-wider">{s.role}</span>
+                                        <span className={`text-14 font-bold font-mono ${s.color}`}>{s.score || 0}%</span>
+                                    </div>
+                                    <div className="w-full h-[5px] bg-brand-elevated rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full ${s.barColor} rounded-full transition-all duration-1000 ease-out`}
+                                            style={{ width: `${s.score || 0}%` }}
+                                        />
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </Card>
                 </div>
+            </div>
+
+            {/* Sparkline Trends + Role Synergy */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-32 mb-64">
+                {/* Profit Trend Sparkline */}
+                <Card className="p-32 border-brand-border shadow-xl">
+                    <div className="flex items-center space-x-12 mb-24">
+                        <FiTrendingUp className="text-brand-primary" size={20} />
+                        <h3 className="text-12 font-bold uppercase tracking-widest">Profit Trend</h3>
+                    </div>
+                    <div className="flex items-end justify-between">
+                        <MiniSparkline
+                            data={[0,1,2,3,4].filter(y => y <= parseInt(year)).map(y => gameState?.[`year${y}`]?.companyState?.cumulativeProfit || 0)}
+                            color="#7C3AED"
+                            height={60}
+                        />
+                        <div className="text-right ml-24">
+                            {[0,1,2,3,4].filter(y => y <= parseInt(year)).map(y => (
+                                <div key={y} className="text-10 text-brand-text-muted font-mono">
+                                    R{y+1}: <span className={`font-bold ${(gameState?.[`year${y}`]?.companyState?.cumulativeProfit || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        ₹{(gameState?.[`year${y}`]?.companyState?.cumulativeProfit || 0).toLocaleString()}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Role Synergy Score */}
+                <Card className="p-32 border-brand-border shadow-xl">
+                    <div className="flex items-center space-x-12 mb-24">
+                        <FiUsers className="text-purple-400" size={20} />
+                        <h3 className="text-12 font-bold uppercase tracking-widest">Role Synergy Index</h3>
+                    </div>
+                    {(() => {
+                        const cto = yearData.scores?.cto || 0;
+                        const cfo = yearData.scores?.cfo || 0;
+                        const pm = yearData.scores?.pm || 0;
+                        const scores = [cto, cfo, pm];
+                        const avg = scores.reduce((a, b) => a + b, 0) / 3;
+                        const variance = scores.reduce((sum, s) => sum + Math.pow(s - avg, 2), 0) / 3;
+                        const stdDev = Math.sqrt(variance);
+                        const maxScore = Math.max(...scores, 1);
+                        const synergy = Math.max(0, Math.round(100 - (stdDev / maxScore) * 100));
+
+                        return (
+                            <div className="space-y-16">
+                                <div className="flex items-end justify-between">
+                                    <div className={`text-48 font-bold font-mono tracking-tighter ${synergy >= 80 ? 'text-emerald-400' : synergy >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
+                                        {synergy}%
+                                    </div>
+                                    <span className={`text-12 font-bold uppercase tracking-wider px-12 py-4 rounded-full border ${
+                                        synergy >= 80 ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' :
+                                        synergy >= 50 ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' :
+                                        'text-red-400 bg-red-500/10 border-red-500/30'
+                                    }`}>
+                                        {synergy >= 80 ? 'Excellent' : synergy >= 50 ? 'Moderate' : 'Low'}
+                                    </span>
+                                </div>
+                                <div className="w-full h-[6px] bg-brand-elevated rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full transition-all duration-1000 ${synergy >= 80 ? 'bg-emerald-500' : synergy >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                                        style={{ width: `${synergy}%` }}
+                                    />
+                                </div>
+                                <p className="text-12 text-brand-text-muted leading-relaxed">
+                                    Synergy measures how balanced the team's role contributions are. High synergy = all roles performing equally well.
+                                </p>
+                            </div>
+                        );
+                    })()}
+                </Card>
             </div>
 
             {/* Final Actions */}

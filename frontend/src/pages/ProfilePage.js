@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '../utils/store';
 import { adminAPI, authAPI } from '../utils/api';
-import { FiUser, FiCheckCircle, FiAlertTriangle, FiBook, FiPlay, FiLock, FiX, FiDownload, FiActivity } from 'react-icons/fi';
+import { FiUser, FiCheckCircle, FiAlertTriangle, FiBook, FiPlay, FiLock, FiX, FiDownload, FiActivity, FiZap, FiAward, FiClock } from 'react-icons/fi';
 import Header from '../components/Header';
 import Card from '../components/Card';
 
@@ -98,6 +98,121 @@ export default function ProfilePage() {
             <span className="text-10 font-bold text-emerald-400 uppercase bg-emerald-500/10 px-8 py-2 rounded border border-emerald-500/20">{teamData?.eventStatus}</span>
           </div>
         </div>
+
+        {/* Round Progress Timeline */}
+        <Card className="p-20 border-brand-border bg-brand-surface/40">
+          <div className="flex items-center gap-10 mb-16">
+            <FiActivity className="text-brand-primary" size={16} />
+            <h3 className="text-12 font-bold text-brand-text-primary uppercase tracking-widest">Round Progress</h3>
+          </div>
+          <div className="flex items-center gap-4">
+            {[0, 1, 2, 3, 4].map((round, idx) => {
+              const roundAnswers = teamData?.gameState?.[`year${round}`]?.answers?.[role?.toLowerCase()];
+              const hasAnswered = roundAnswers && Object.keys(roundAnswers).length > 0;
+              const wasDisqualified = roundAnswers?.disqualified;
+              const isCurrent = round === adminActiveRound;
+              const isActive = isCurrent && isRoundActive;
+              const isFuture = round > adminActiveRound;
+
+              return (
+                <React.Fragment key={round}>
+                  <button
+                    onClick={() => hasAnswered && !wasDisqualified && navigate(`/report/${round}`)}
+                    className={`flex-1 flex flex-col items-center gap-8 py-12 px-8 rounded-xl transition-all ${
+                      hasAnswered && !wasDisqualified ? 'cursor-pointer hover:bg-brand-primary/5' : 'cursor-default'
+                    }`}
+                  >
+                    <div className={`w-32 h-32 rounded-full flex items-center justify-center text-12 font-bold transition-all ${
+                      wasDisqualified ? 'bg-red-500/20 text-red-400 border-2 border-red-500/40'
+                      : hasAnswered ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/40'
+                      : isActive ? 'bg-brand-primary/20 text-brand-primary border-2 border-brand-primary/50 animate-pulse'
+                      : isCurrent ? 'bg-brand-primary/10 text-brand-primary border-2 border-brand-primary/30'
+                      : 'bg-brand-elevated text-brand-text-muted border-2 border-brand-border'
+                    }`}>
+                      {wasDisqualified ? <FiAlertTriangle size={14} />
+                       : hasAnswered ? <FiCheckCircle size={14} />
+                       : isActive ? <FiPlay size={12} />
+                       : isFuture ? <FiLock size={12} />
+                       : round + 1}
+                    </div>
+                    <span className={`text-10 font-bold uppercase tracking-wider ${
+                      isCurrent ? 'text-brand-primary' : hasAnswered ? 'text-emerald-400' : 'text-brand-text-muted'
+                    }`}>
+                      R{round + 1}
+                    </span>
+                    {hasAnswered && !wasDisqualified && (
+                      <span className="text-[9px] text-brand-text-muted font-medium">View Report</span>
+                    )}
+                  </button>
+                  {idx < 4 && (
+                    <div className={`h-[2px] w-12 rounded-full shrink-0 ${
+                      hasAnswered ? 'bg-emerald-500/40' : 'bg-brand-border'
+                    }`} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Achievement Badges */}
+        {(() => {
+          const badges = [];
+          const gs = teamData?.gameState || {};
+          const r = role?.toLowerCase();
+
+          const completedRounds = [0,1,2,3,4].filter(y => {
+            const a = gs[`year${y}`]?.answers?.[r];
+            return a && Object.keys(a).length > 0 && !a.disqualified;
+          });
+
+          if (completedRounds.length >= 1) {
+            const firstRound = completedRounds[0];
+            const time = gs[`year${firstRound}`]?.answers?.[r]?.timeSpent;
+            if (time !== undefined && time < 300) {
+              badges.push({ icon: <FiZap />, label: 'Speed Demon', desc: 'Completed a round in under 5 minutes', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' });
+            }
+          }
+
+          if (completedRounds.length >= 1) {
+            badges.push({ icon: <FiAward />, label: 'First Strike', desc: 'Completed your first round', color: 'text-brand-primary', bg: 'bg-brand-primary/10', border: 'border-brand-primary/30' });
+          }
+
+          if (completedRounds.length >= 3) {
+            badges.push({ icon: <FiCheckCircle />, label: 'Veteran', desc: 'Completed 3+ rounds', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' });
+          }
+
+          if (completedRounds.length >= 5) {
+            badges.push({ icon: <FiAward />, label: 'Mission Complete', desc: 'Completed all 5 rounds', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' });
+          }
+
+          const allTimes = completedRounds.map(y => gs[`year${y}`]?.answers?.[r]?.timeSpent).filter(t => t !== undefined);
+          if (allTimes.length > 0 && allTimes.every(t => t < 600)) {
+            badges.push({ icon: <FiClock />, label: 'Efficient Operator', desc: 'All rounds under 10 min', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30' });
+          }
+
+          if (badges.length === 0) return null;
+
+          return (
+            <Card className="p-20 border-brand-border bg-brand-surface/40">
+              <div className="flex items-center gap-10 mb-16">
+                <FiAward className="text-brand-primary" size={16} />
+                <h3 className="text-12 font-bold text-brand-text-primary uppercase tracking-widest">Achievements</h3>
+              </div>
+              <div className="flex flex-wrap gap-8">
+                {badges.map((b, idx) => (
+                  <div key={idx} className={`flex items-center gap-8 px-12 py-8 rounded-xl ${b.bg} border ${b.border} transition-all hover:scale-105`}>
+                    <div className={b.color}>{React.cloneElement(b.icon, { size: 16 })}</div>
+                    <div>
+                      <p className={`text-12 font-bold ${b.color}`}>{b.label}</p>
+                      <p className="text-[9px] text-brand-text-muted font-medium">{b.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          );
+        })()}
 
         {/* Role Cards — THE ONLY PLACE for role info now */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-16">

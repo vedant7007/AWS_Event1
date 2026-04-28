@@ -14,12 +14,12 @@ import LeaderboardPage from './pages/LeaderboardPage';
 import ResultsPage from './pages/ResultsPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import BroadcastListener from './components/BroadcastListener';
 
 function App() {
-  // Game state is handled via store and ProtectedRoute transitions
-
   return (
     <Router>
+      <BroadcastListener />
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />

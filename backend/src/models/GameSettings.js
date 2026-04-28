@@ -27,7 +27,12 @@ const gameSettingsSchema = new mongoose.Schema({
   lastUpdated: {
     type: Date,
     default: Date.now
-  }
+  },
+  broadcasts: [{
+    message: String,
+    type: { type: String, default: 'info' },
+    timestamp: { type: Date, default: Date.now }
+  }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('GameSettings', gameSettingsSchema);
