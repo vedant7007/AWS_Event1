@@ -302,9 +302,8 @@ const AdminDashboard = () => {
     }
   }, [newQ.type]);
 
-  const handleStartStopRound = async (start) => {
-    const targetYearStr = menuItems.find(m => m.id === activeTab)?.year;
-    const targetYear = Number(targetYearStr);
+  const handleStartStopRound = async (start, overrideYear = null) => {
+    const targetYear = overrideYear !== null ? overrideYear : Number(menuItems.find(m => m.id === activeTab)?.year);
 
     if (start) {
         // Enforce sequential rounds
@@ -719,7 +718,7 @@ const AdminDashboard = () => {
                     </div>
                     {roundSubs?.allTeamsComplete && (
                         <button
-                            onClick={() => handleStartStopRound(false)}
+                            onClick={() => handleStartStopRound(false, settings.currentRound)}
                             className="px-[16px] py-[8px] bg-red-500 hover:bg-red-600 text-white text-[12px] font-bold uppercase tracking-wider rounded-[8px] transition-all flex items-center gap-[6px]"
                         >
                             <FiX size={14} /> Close Round Early
