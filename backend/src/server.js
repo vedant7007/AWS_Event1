@@ -17,7 +17,7 @@ const { connectRedis } = require('./utils/redis');
 // Rate limiters
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many login attempts. Please wait 15 minutes and try again.' }
@@ -33,7 +33,7 @@ const submissionLimiter = rateLimit({
 
 const adminLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 60,
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many admin requests. Please slow down.' }
@@ -83,6 +83,9 @@ io.on('connection', (socket) => {
   socket.on('join-event', (teamId) => {
     socket.join(`team-${teamId}`);
     socket.join('leaderboard');
+    if (teamId === 'ADMIN-EVENT-2026') {
+      socket.join('admin');
+    }
     console.log(`${teamId} joined leaderboard`);
   });
 

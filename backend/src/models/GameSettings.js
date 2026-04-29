@@ -35,7 +35,12 @@ const gameSettingsSchema = new mongoose.Schema({
   activeFunQuestionId: {
     type: String,
     default: null
-  }
+  },
+  broadcasts: [{
+    message: { type: String, required: true },
+    type: { type: String, enum: ['info', 'warning', 'alert', 'success'], default: 'info' },
+    timestamp: { type: Date, default: Date.now }
+  }]
 }, { timestamps: true });
 
 

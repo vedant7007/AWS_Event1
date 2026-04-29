@@ -56,6 +56,7 @@ export const adminAPI = {
   updateSettings: (settings) => apiClient.post('/admin/settings', settings),
   resetGame: (resetType) => apiClient.post('/admin/reset-game', { resetType }),
   getTeams: () => apiClient.get('/admin/teams'),
+  deleteTeam: (teamId) => apiClient.delete(`/admin/teams/${teamId}`),
   getQuestions: () => apiClient.get('/admin/questions'),
   createQuestion: (qData) => apiClient.post('/admin/questions', qData),
   updateQuestion: (id, qData) => apiClient.put(`/admin/questions/${id}`, qData),
@@ -63,8 +64,11 @@ export const adminAPI = {
   createAdmin: (adminData) => apiClient.post('/admin/create-admin', adminData),
   registerTeam: (teamData) => apiClient.post('/auth/register', teamData),
   broadcast: (message, type) => apiClient.post('/admin/broadcast', { message, type }),
+  getBroadcasts: () => apiClient.get('/admin/broadcasts'),
+  clearBroadcasts: () => apiClient.delete('/admin/broadcasts'),
   getAnalytics: () => apiClient.get('/admin/analytics'),
   getRoundStats: () => apiClient.get('/admin/round-stats'),
+  getRoundSubmissions: (round) => apiClient.get(`/admin/round-submissions/${round}`),
   recoverSession: (teamId, role, year) => apiClient.post('/admin/session-recovery', { teamId, role, year })
 };
 

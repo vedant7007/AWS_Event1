@@ -117,14 +117,16 @@ router.post('/login', async (req, res) => {
     }
 
     // Find member by name. If role is provided, ensure it matches.
+    // For admin team, skip role check since admin role isn't in the login dropdown.
+    const isAdminTeam = teamId === 'ADMIN-EVENT-2026';
     let member;
-    if (role) {
-      member = team.members.find(m => 
-        m.name.toLowerCase() === memberName.toLowerCase() && 
+    if (role && !isAdminTeam) {
+      member = team.members.find(m =>
+        m.name.toLowerCase() === memberName.toLowerCase() &&
         m.role.toLowerCase() === role.toLowerCase()
       );
     } else {
-      member = team.members.find(m => 
+      member = team.members.find(m =>
         m.name.toLowerCase() === memberName.toLowerCase()
       );
     }

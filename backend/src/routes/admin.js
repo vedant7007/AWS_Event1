@@ -64,14 +64,14 @@ router.post('/settings', verifyToken, verifyAdmin, async (req, res) => {
         roundAutoCloseTimer = null;
       }
 
-      // Auto-close after 30 minutes
+      // Auto-close after 20 minutes
       roundAutoCloseTimer = setTimeout(async () => {
         try {
           await GameSettings.findOneAndUpdate(
             { id: 'global_settings' },
             { isRoundActive: false, lastUpdated: new Date() }
           );
-          console.log(`[TIMER] Round ${currentRound + 1} auto-closed after 30 minutes.`);
+          console.log(`[TIMER] Round ${currentRound + 1} auto-closed after 20 minutes.`);
 
           // Invalidate caches
           if (isRedisReady()) {
@@ -82,7 +82,7 @@ router.post('/settings', verifyToken, verifyAdmin, async (req, res) => {
           console.error('[TIMER] Auto-close error:', e);
         }
         roundAutoCloseTimer = null;
-      }, 30 * 60 * 1000); // 30 minutes
+      }, 20 * 60 * 1000); // 20 minutes
 
     } else {
       // When stopping a round, clear the timer
@@ -132,18 +132,23 @@ router.get('/teams', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const teams = await Team.find(
       { teamId: { $ne: 'ADMIN-EVENT-2026' } },
-      'teamId teamName members currentYear eventStatus points finalScore gameState'
+      'teamId teamName members currentYear eventStatus points finalScore gameState college department domain population'
     );
 
     res.status(200).json({
       total: teams.length,
       teams: teams.map(team => ({
+        _id: team._id,
         teamId: team.teamId,
         teamName: team.teamName,
-        members: team.members ? team.members.map(m => ({ 
-          name: m.name, 
+        college: team.college,
+        department: team.department,
+        domain: team.domain,
+        population: team.population,
+        members: team.members ? team.members.map(m => ({
+          name: m.name,
           role: m.role,
-          password: m.plainPassword // Send plain password to admin
+          password: m.plainPassword
         })) : [],
         status: team.eventStatus,
         currentYear: team.currentYear,
@@ -196,6 +201,83 @@ router.post('/reset-game', verifyToken, verifyAdmin, async (req, res) => {
     );
 
     res.status(200).json({ success: true, message: 'Game re-initialized successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/admin/round-submissions/:round
+ * Get submission stats for a specific round
+ */
+router.get('/round-submissions/:round', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const round = parseInt(req.params.round);
+    const teams = await Team.find(
+      { teamId: { $ne: 'ADMIN-EVENT-2026' } },
+      `teamId teamName gameState.year${round}`
+    );
+
+    const totalTeams = teams.length;
+    let ctoSubmitted = 0, cfoSubmitted = 0, pmSubmitted = 0;
+    const teamDetails = [];
+
+    teams.forEach(team => {
+      const yearData = team.gameState?.[`year${round}`];
+      const ctoAnswers = yearData?.answers?.cto || {};
+      const cfoAnswers = yearData?.answers?.cfo || {};
+      const pmAnswers = yearData?.answers?.pm || {};
+      const ctoDone = Object.keys(ctoAnswers).length > 0;
+      const cfoDone = Object.keys(cfoAnswers).length > 0;
+      const pmDone = Object.keys(pmAnswers).length > 0;
+
+      if (ctoDone) ctoSubmitted++;
+      if (cfoDone) cfoSubmitted++;
+      if (pmDone) pmSubmitted++;
+
+      teamDetails.push({
+        teamId: team.teamId,
+        teamName: team.teamName,
+        cto: ctoDone,
+        cfo: cfoDone,
+        pm: pmDone,
+        allDone: ctoDone && cfoDone && pmDone
+      });
+    });
+
+    const allTeamsComplete = teamDetails.every(t => t.allDone);
+
+    res.status(200).json({
+      round,
+      totalTeams,
+      ctoSubmitted,
+      cfoSubmitted,
+      pmSubmitted,
+      allTeamsComplete,
+      teams: teamDetails
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * DELETE /api/admin/teams/:teamId
+ * Delete a single team and its submissions
+ */
+router.delete('/teams/:teamId', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    if (teamId === 'ADMIN-EVENT-2026') {
+      return res.status(403).json({ error: 'Cannot delete admin team.' });
+    }
+    const Submission = require('../models/Submission');
+    await Team.deleteOne({ teamId });
+    await Submission.deleteMany({ teamId });
+    if (isRedisReady()) {
+      await redisClient.del('global:leaderboard');
+    }
+    res.status(200).json({ success: true, message: `Team ${teamId} deleted.` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -288,12 +370,14 @@ router.post('/broadcast', verifyToken, verifyAdmin, async (req, res) => {
     const { message, type } = req.body;
     if (!message) return res.status(400).json({ error: 'Message required' });
 
+    const broadcast = { message, type: type || 'info', timestamp: new Date() };
+
     const settings = await GameSettings.findOneAndUpdate(
       { id: 'global_settings' },
       {
         $push: {
           broadcasts: {
-            $each: [{ message, type: type || 'info', timestamp: new Date() }],
+            $each: [broadcast],
             $slice: -50
           }
         }
@@ -305,7 +389,37 @@ router.post('/broadcast', verifyToken, verifyAdmin, async (req, res) => {
       await redisClient.del('global:settings');
     }
 
-    res.status(200).json({ success: true, broadcast: settings.broadcasts?.slice(-1)[0] });
+    const saved = settings.broadcasts?.slice(-1)[0];
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('broadcast', saved);
+    }
+
+    res.status(200).json({ success: true, broadcast: saved });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/broadcasts', verifyToken, async (req, res) => {
+  try {
+    const settings = await GameSettings.findOne({ id: 'global_settings' }, 'broadcasts');
+    res.status(200).json({ broadcasts: settings?.broadcasts || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/broadcasts', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    await GameSettings.findOneAndUpdate(
+      { id: 'global_settings' },
+      { $set: { broadcasts: [] } }
+    );
+    if (isRedisReady()) {
+      await redisClient.del('global:settings');
+    }
+    res.status(200).json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

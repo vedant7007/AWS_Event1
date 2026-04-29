@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiLayout } from 'react-icons/fi';
+import { FiArrowLeft, FiLayout, FiLogOut } from 'react-icons/fi';
 import { useGameStore } from '../utils/store';
 import logo from '../assets/logo.png';
 
 const Header = ({ title, showLeaderboard = true, showBackButton = false }) => {
   const navigate = useNavigate();
-  const { teamId, isLoggedIn } = useGameStore();
+  const { teamId, isLoggedIn, setLogout } = useGameStore();
 
   return (
     <header className="bg-[#0B0F14] border-b border-[#1F2937] sticky top-0 z-[100] transition-all duration-300">
@@ -51,6 +51,13 @@ const Header = ({ title, showLeaderboard = true, showBackButton = false }) => {
               <div className="w-32 h-32 rounded-lg bg-brand-primary/20 flex items-center justify-center text-brand-primary border border-brand-primary/30">
                 <FiLayout size={18} />
               </div>
+              <button
+                onClick={() => { setLogout(); navigate('/'); }}
+                className="ml-[8px] p-[8px] rounded-lg text-[#6B7280] hover:text-red-400 hover:bg-red-500/10 transition-all"
+                title="Logout"
+              >
+                <FiLogOut size={18} />
+              </button>
             </div>
           )}
         </div>

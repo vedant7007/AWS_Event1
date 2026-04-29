@@ -1,15 +1,23 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { leaderboardAPI } from '../utils/api';
-import { FiTrendingUp, FiActivity, FiUsers, FiAward, FiZap, FiRefreshCw, FiClock, FiTarget } from 'react-icons/fi';
-import Card from './Card';
+import { FiTrendingUp, FiActivity, FiUsers, FiAward, FiZap, FiRefreshCw, FiClock, FiTarget, FiChevronUp, FiChevronDown } from 'react-icons/fi';
+
+const PODIUM = [
+  { idx: 1, label: '2ND', bg: 'from-slate-400/15 to-slate-600/5', text: 'text-slate-300', border: 'border-slate-400/25', ring: 'ring-slate-400/40', height: 'h-[120px]', avatar: 'w-[56px] h-[56px] text-[18px]', score: 'text-[22px]', order: 'order-1', mt: 'mt-[32px]' },
+  { idx: 0, label: '1ST', bg: 'from-yellow-400/20 to-amber-600/5', text: 'text-yellow-400', border: 'border-yellow-400/30', ring: 'ring-yellow-400/50', height: 'h-[160px]', avatar: 'w-[72px] h-[72px] text-[24px]', score: 'text-[28px]', order: 'order-2', mt: '', glow: 'shadow-[0_0_50px_rgba(250,204,21,0.1)]' },
+  { idx: 2, label: '3RD', bg: 'from-amber-600/12 to-amber-800/5', text: 'text-amber-500', border: 'border-amber-600/25', ring: 'ring-amber-600/40', height: 'h-[100px]', avatar: 'w-[48px] h-[48px] text-[16px]', score: 'text-[20px]', order: 'order-3', mt: 'mt-[48px]' },
+];
+
+const getInitials = (name) => name.split(/[\s-]+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
 const Leaderboard = ({ isFullScreen = false, filterYear = null }) => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [activeTeams, setActiveTeams] = useState(0);
-  const prevLeaderboardRef = useRef([]);
+  const [activeRounds, setActiveRounds] = useState([]);
+  const prevRanks = useRef({});
+  const [rankChanges, setRankChanges] = useState({});
 
   useEffect(() => {
     const loadLeaderboard = async () => {
@@ -17,35 +25,44 @@ const Leaderboard = ({ isFullScreen = false, filterYear = null }) => {
         const response = await leaderboardAPI.getAll();
         let newData = response.data.leaderboard;
 
-        // If filtering by year, sort specifically for that year
         if (filterYear !== null) {
           newData = [...newData].sort((a, b) => {
             const pA = a[`year${filterYear}Points`] || 0;
             const pB = b[`year${filterYear}Points`] || 0;
             if (pB !== pA) return pB - pA;
-            
             const eA = a[`year${filterYear}Efficiency`] || 0;
             const eB = b[`year${filterYear}Efficiency`] || 0;
             if (eB !== eA) return eB - eA;
-            
             const tA = a[`year${filterYear}Time`] || 9999;
             const tB = b[`year${filterYear}Time`] || 9999;
             return tA - tB;
           });
         }
 
-        const active = newData.filter(t => {
-          const prev = prevLeaderboardRef.current.find(p => p.teamId === t.teamId);
-          return prev && (t.scoreSum !== prev.scoreSum);
-        }).length;
-        setActiveTeams(active);
-        prevLeaderboardRef.current = newData;
+        const changes = {};
+        newData.forEach((team, idx) => {
+          const prev = prevRanks.current[team.teamId];
+          if (prev !== undefined) {
+            if (idx < prev) changes[team.teamId] = 'up';
+            else if (idx > prev) changes[team.teamId] = 'down';
+          }
+          prevRanks.current[team.teamId] = idx;
+        });
+        setRankChanges(changes);
+        setTimeout(() => setRankChanges({}), 3000);
+
+        const rounds = [];
+        for (let i = 0; i <= 9; i++) {
+          if (newData.some(t => (t[`year${i}Points`] || 0) > 0)) rounds.push(i);
+        }
+        setActiveRounds(rounds);
 
         setLeaderboard(newData);
         setLastUpdated(new Date());
+        setError('');
         setLoading(false);
       } catch (err) {
-        setError('Operational Telemetry Interrupted');
+        setError('Failed to load rankings');
         setLoading(false);
       }
     };
@@ -55,6 +72,12 @@ const Leaderboard = ({ isFullScreen = false, filterYear = null }) => {
     return () => clearInterval(interval);
   }, [filterYear]);
 
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick(c => c + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
   const getTimeSince = () => {
     if (!lastUpdated) return '';
     const seconds = Math.floor((Date.now() - lastUpdated.getTime()) / 1000);
@@ -63,262 +86,279 @@ const Leaderboard = ({ isFullScreen = false, filterYear = null }) => {
     return `${Math.floor(seconds / 60)}m ago`;
   };
 
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setTick(c => c + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
+  const formatTime = (seconds) => {
+    if (seconds === undefined) return '--';
+    return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  };
 
   if (loading) return (
-    <div className="py-64 flex flex-col items-center justify-center">
-      <FiZap className="text-brand-primary animate-pulse mb-24" size={48} />
-      <p className="text-brand-text-muted font-medium uppercase tracking-[0.3em] text-12">Streaming Live Rankings...</p>
+    <div className="py-[64px] flex flex-col items-center justify-center">
+      <FiZap className="text-[#7C3AED] animate-pulse mb-[20px]" size={48} />
+      <p className="text-[#6B7280] font-semibold uppercase tracking-[0.3em] text-[12px]">Loading Rankings...</p>
     </div>
   );
 
+  const top3 = leaderboard.slice(0, 3);
+  const fs = isFullScreen;
+
   return (
-    <div className="w-full animate-in fade-in duration-700">
+    <div className="w-full animate-in fade-in duration-500">
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-24 py-16 rounded-xl mb-32 font-medium flex items-center space-x-12">
-          <FiActivity size={20} />
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-[20px] py-[14px] rounded-[12px] mb-[24px] flex items-center gap-[10px] text-[13px] font-medium">
+          <FiActivity size={18} />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Status bar */}
-      {!isFullScreen && (
-        <div className="flex items-center justify-between mb-16 px-4">
-          <div className="flex items-center gap-16">
-            <div className="flex items-center gap-12">
-               <FiAward className="text-brand-primary" size={20} />
-               <h3 className="text-18 font-bold text-white uppercase tracking-wider">
-                 {filterYear !== null ? `Round ${filterYear + 1} Ranking` : 'Global Competition Ranking'}
-               </h3>
-            </div>
-            {activeTeams > 0 && (
-              <div className="flex items-center gap-8 text-12 text-emerald-400 font-bold ml-16">
-                <div className="w-[8px] h-[8px] bg-emerald-500 rounded-full animate-pulse" />
-                <span>{activeTeams} team{activeTeams !== 1 ? 's' : ''} scoring</span>
-              </div>
-            )}
+      {/* Header bar */}
+      <div className="flex items-center justify-between mb-[20px] px-[4px]">
+        <div className="flex items-center gap-[12px]">
+          <FiAward className="text-[#7C3AED]" size={fs ? 24 : 18} />
+          <h3 className={`font-bold text-white tracking-tight ${fs ? 'text-[28px]' : 'text-[16px]'}`}>
+            {filterYear !== null ? `Round ${filterYear + 1} Rankings` : 'Global Rankings'}
+          </h3>
+          <div className="flex items-center gap-[6px] ml-[8px] px-[10px] py-[4px] bg-[#111827] rounded-[8px] border border-[#1F2937]">
+            <div className="w-[6px] h-[6px] bg-emerald-500 rounded-full animate-pulse" />
+            <span className="text-[10px] font-semibold text-[#6B7280]">{leaderboard.length} teams</span>
           </div>
-          {lastUpdated && (
-            <div className="flex items-center gap-8 text-11 text-brand-text-muted font-medium">
-              <FiRefreshCw size={12} className="animate-spin" style={{ animationDuration: '3s' }} />
-              <span>Updated {getTimeSince()}</span>
-            </div>
-          )}
+        </div>
+        {lastUpdated && (
+          <div className="flex items-center gap-[6px] text-[10px] text-[#6B7280]">
+            <FiRefreshCw size={10} className="animate-spin" style={{ animationDuration: '3s' }} />
+            <span>{getTimeSince()}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Podium — Top 3 */}
+      {top3.length >= 2 && filterYear === null && (
+        <div className={`flex items-end justify-center gap-[16px] mb-[28px] ${fs ? 'px-[60px]' : 'px-[20px]'}`}>
+          {PODIUM.map(({ idx, label, bg, text, border, ring, height, avatar, score, order, mt, glow }) => {
+            const team = top3[idx];
+            if (!team) return null;
+            const fsHeight = fs ? 'h-[200px]' : height;
+            const fsAvatar = fs ? 'w-[90px] h-[90px] text-[30px]' : avatar;
+            const fsScore = fs ? 'text-[36px]' : score;
+            return (
+              <div key={idx} className={`flex-1 max-w-[280px] ${order} ${mt}`}>
+                <div className="flex flex-col items-center mb-[12px]">
+                  <div className={`${fsAvatar} rounded-full bg-gradient-to-br ${bg} ${ring} ring-2 flex items-center justify-center font-bold ${text}`}>
+                    {getInitials(team.teamName)}
+                  </div>
+                  <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${text} mt-[6px]`}>{label}</span>
+                </div>
+                <div className={`bg-[#0B0F14] ${border} border rounded-t-[14px] p-[20px] text-center ${glow || ''} relative overflow-hidden ${fsHeight} flex flex-col justify-center`}>
+                  <div className={`absolute inset-0 bg-gradient-to-b ${bg} pointer-events-none`} />
+                  <div className="relative z-10">
+                    <h4 className={`${fs ? 'text-[20px]' : 'text-[15px]'} font-bold text-white truncate mb-[6px] px-[4px]`}>{team.teamName}</h4>
+                    <div className={`${fsScore} font-bold font-mono ${text} tracking-tight`}>
+                      {team.scoreSum || 0}
+                      <span className="text-[11px] font-medium ml-[3px] opacity-50">pts</span>
+                    </div>
+                    <div className="mt-[8px] flex items-center justify-center gap-[5px]">
+                      <div className={`${fs ? 'w-[50px]' : 'w-[40px]'} h-[3px] bg-white/10 rounded-full overflow-hidden`}>
+                        <div className="h-full bg-emerald-500/60 rounded-full" style={{ width: `${team.avgEfficiency || 0}%` }} />
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-400/70">{team.avgEfficiency || 0}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Desktop table */}
-      <Card className="p-0 overflow-hidden border border-brand-border bg-brand-surface shadow-premium hidden md:flex flex-col">
-        <div className="overflow-x-auto overflow-y-auto flex-1 hidden-scrollbar relative">
-          <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 z-10 bg-brand-elevated shadow-md">
-              <tr className="border-b border-brand-border">
-                <th className="px-24 py-[20px] border-b border-brand-border">
-                  <div className="flex items-center space-x-4">
-                    <FiAward className="text-brand-primary" size={14} />
-                    <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Rank</span>
-                  </div>
-                </th>
-                <th className="px-24 py-[20px] border-b border-brand-border">
-                  <div className="flex items-center space-x-4">
-                    <FiUsers className="text-brand-primary" size={14} />
-                    <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Unit Identity</span>
-                  </div>
-                </th>
-                
-                {filterYear === null ? (
-                  <>
-                    <th className="px-24 py-[20px] border-b border-brand-border text-center">
-                      <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Efficiency</span>
-                    </th>
-                    <th className="px-24 py-[20px] border-b border-brand-border text-center">
-                      <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Op Time</span>
-                    </th>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(y => (
-                      <th key={y} className="px-24 py-[20px] border-b border-brand-border text-center min-w-[100px]">
-                         <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Round {y}</span>
-                      </th>
-                    ))}
-                    <th className="px-24 py-[20px] border-b border-brand-border text-right">
-                      <div className="flex items-center justify-end space-x-4">
-                        <FiTrendingUp className="text-brand-primary" size={14} />
-                        <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Total</span>
-                      </div>
-                    </th>
-                  </>
-                ) : (
-                  <>
-                    <th className="px-24 py-[20px] border-b border-brand-border text-center">
-                      <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Round Score</span>
-                    </th>
-                    <th className="px-24 py-[20px] border-b border-brand-border text-center">
-                      <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Efficiency</span>
-                    </th>
-                    <th className="px-24 py-[20px] border-b border-brand-border text-center">
-                      <span className="text-brand-text-muted font-semibold uppercase tracking-widest text-10 whitespace-nowrap">Time Spent</span>
-                    </th>
-                  </>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-brand-border">
-              {leaderboard.map((team, idx) => (
-                <tr key={team.teamId} className={`group transition-all hover:bg-white/[0.02] ${isFullScreen ? 'h-[100px]' : ''}`}>
-                  <td className="px-24 py-24">
-                     <span className={`font-bold font-mono ${
-                       isFullScreen ? 'text-28' : 'text-16'
-                     } ${
-                       idx === 0 ? 'text-yellow-500' :
-                       idx === 1 ? 'text-gray-400' :
-                       idx === 2 ? 'text-amber-600' :
-                       'text-brand-text-muted opacity-50'
-                     }`}>
-                        {idx + 1}
-                     </span>
-                  </td>
-                  <td className="px-24 py-24 whitespace-nowrap">
-                     <span className={`font-bold text-brand-text-primary group-hover:text-brand-primary transition-colors ${
-                       isFullScreen ? 'text-22' : 'text-14'
-                     }`}>{team.teamName}</span>
-                  </td>
+      {/* Stats Row */}
+      {leaderboard.length > 0 && !fs && (
+        <div className="grid grid-cols-4 gap-[10px] mb-[20px]">
+          {[
+            { label: 'Teams', value: leaderboard.length, icon: FiUsers, color: 'text-[#7C3AED]' },
+            { label: 'Rounds', value: activeRounds.length, icon: FiActivity, color: 'text-emerald-400' },
+            { label: 'Top Score', value: leaderboard[0]?.scoreSum || 0, icon: FiTrendingUp, color: 'text-yellow-400' },
+            { label: 'Avg Score', value: leaderboard.length ? Math.round(leaderboard.reduce((s, t) => s + (t.scoreSum || 0), 0) / leaderboard.length) : 0, icon: FiAward, color: 'text-sky-400' },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="bg-[#0B0F14] border border-[#1F2937] rounded-[10px] p-[12px] flex items-center gap-[10px]">
+              <div className={`w-[30px] h-[30px] rounded-[8px] bg-white/[0.04] flex items-center justify-center ${color}`}>
+                <Icon size={14} />
+              </div>
+              <div>
+                <div className="text-[15px] font-bold font-mono text-white leading-none">{value}</div>
+                <div className="text-[9px] font-semibold uppercase tracking-[0.1em] text-[#6B7280]">{label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Table */}
+      {leaderboard.length > 0 && (
+        <div className="bg-[#0B0F14] border border-[#1F2937] rounded-[14px] overflow-hidden shadow-xl">
+          <div className="overflow-x-auto overflow-y-auto hidden-scrollbar">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-[#111827] border-b border-[#1F2937]">
+                  <th className="px-[18px] py-[14px] text-left w-[60px]">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6B7280]">#</span>
+                  </th>
+                  <th className="px-[18px] py-[14px] text-left">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6B7280]">Team</span>
+                  </th>
 
                   {filterYear === null ? (
                     <>
-                      <td className="px-24 py-24 text-center">
-                        <div className="flex flex-col items-center">
-                            <span className={`font-mono font-bold text-emerald-400 ${isFullScreen ? 'text-24' : 'text-14'}`}>
-                            {team.avgEfficiency !== undefined ? `${team.avgEfficiency}%` : '-'}
-                            </span>
-                            {isFullScreen && <span className="text-[10px] text-brand-text-muted uppercase font-bold tracking-tighter">Avg Eff</span>}
-                        </div>
-                      </td>
-                      <td className="px-24 py-24 text-center">
-                        <div className="flex flex-col items-center">
-                            <span className={`font-mono text-brand-text-secondary whitespace-nowrap ${isFullScreen ? 'text-18' : 'text-12'}`}>
-                            {team.totalTimeSpent !== undefined ? `${Math.floor(team.totalTimeSpent/60)}m ${team.totalTimeSpent%60}s` : '-'}
-                            </span>
-                            {isFullScreen && <span className="text-[10px] text-brand-text-muted uppercase font-bold tracking-tighter">Total Time</span>}
-                        </div>
-                      </td>
-                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(y => {
-                        const points = team[`year${y}Points`];
-                        const time = team[`year${y}Time`];
-                        const eff = team[`year${y}Efficiency`];
-                        
-                        return (
-                          <td key={y} className="px-16 py-12 text-center group/cell">
-                            <div className="flex flex-col gap-2">
-                                <span className={`font-mono font-bold ${isFullScreen ? 'text-20' : 'text-14'} ${points > 0 ? 'text-brand-text-primary' : 'text-brand-text-muted opacity-40'}`}>
-                                    {points || 0}
-                                </span>
-                                {(points > 0 || isFullScreen) && (
-                                    <div className={`flex flex-col gap-1 transition-opacity ${isFullScreen ? 'opacity-100' : 'opacity-0 group-hover/cell:opacity-100'}`}>
-                                        <div className="flex items-center justify-center gap-4 text-[9px] text-emerald-500/80 font-bold">
-                                            <FiTarget size={8} /> {eff}%
-                                        </div>
-                                        <div className="flex items-center justify-center gap-4 text-[9px] text-brand-text-muted font-mono">
-                                            <FiClock size={8} /> {time ? `${time}s` : '-'}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                          </td>
-                        );
-                      })}
-                      <td className="px-24 py-24 text-right">
-                        <span className={`font-bold font-mono tracking-tight ${isFullScreen ? 'text-42' : 'text-20'} ${idx === 0 ? 'text-brand-primary' : 'text-brand-text-primary'}`}>
-                          {team.scoreSum || 0}
-                        </span>
-                      </td>
+                      <th className="px-[14px] py-[14px] text-center">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6B7280]">Efficiency</span>
+                      </th>
+                      <th className="px-[14px] py-[14px] text-center">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6B7280]">Time</span>
+                      </th>
+                      {activeRounds.map(r => (
+                        <th key={r} className="px-[12px] py-[14px] text-center">
+                          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6B7280]">R{r + 1}</span>
+                        </th>
+                      ))}
+                      <th className="px-[18px] py-[14px] text-right">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6B7280]">Total</span>
+                      </th>
                     </>
                   ) : (
                     <>
-                      <td className="px-24 py-24 text-center">
-                        <span className={`font-mono font-bold text-brand-text-primary ${isFullScreen ? 'text-28' : 'text-18'}`}>
-                          {team[`year${filterYear}Points`] || 0}
-                        </span>
-                      </td>
-                      <td className="px-24 py-24 text-center">
-                        <span className={`font-mono font-bold text-emerald-400 ${isFullScreen ? 'text-24' : 'text-16'}`}>
-                          {team[`year${filterYear}Efficiency`] || 0}%
-                        </span>
-                      </td>
-                      <td className="px-24 py-24 text-center">
-                        <span className={`font-mono text-brand-text-secondary ${isFullScreen ? 'text-20' : 'text-14'}`}>
-                          {team[`year${filterYear}Time`] ? `${team[`year${filterYear}Time`]}s` : '--'}
-                        </span>
-                      </td>
+                      <th className="px-[14px] py-[14px] text-center">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6B7280]">Score</span>
+                      </th>
+                      <th className="px-[14px] py-[14px] text-center">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6B7280]">Efficiency</span>
+                      </th>
+                      <th className="px-[14px] py-[14px] text-center">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#6B7280]">Time</span>
+                      </th>
                     </>
                   )}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Mobile card layout */}
-      <div className="md:hidden space-y-12">
-        {leaderboard.map((team, idx) => (
-          <Card key={team.teamId} className={`p-16 ${idx < 3 ? 'border-brand-primary/20' : 'border-brand-border'}`}>
-            <div className="flex items-center justify-between mb-12">
-              <div className="flex items-center gap-12">
-                <div className={`w-32 h-32 rounded-lg flex items-center justify-center font-bold text-14 font-mono ${
-                  idx === 0 ? 'bg-yellow-500/20 text-yellow-500' :
-                  idx === 1 ? 'bg-gray-400/20 text-gray-400' :
-                  idx === 2 ? 'bg-amber-600/20 text-amber-600' :
-                  'bg-brand-elevated text-brand-text-muted'
-                }`}>
-                  {idx + 1}
-                </div>
-                <span className="text-16 font-bold text-brand-text-primary">{team.teamName}</span>
-              </div>
-              <span className={`text-20 font-bold font-mono ${idx === 0 ? 'text-brand-primary' : 'text-brand-text-primary'}`}>
-                {filterYear !== null ? (team[`year${filterYear}Points`] || 0) : (team.scoreSum || 0)}
-              </span>
-            </div>
-
-            {filterYear === null ? (
-              <div className="grid grid-cols-5 gap-4">
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(y => {
-                  const points = team[`year${y}Points`];
+              </thead>
+              <tbody>
+                {leaderboard.map((team, idx) => {
+                  const change = rankChanges[team.teamId];
                   return (
-                    <div key={y} className="text-center py-4 bg-brand-elevated/50 rounded-lg">
-                      <div className="text-[9px] text-brand-text-muted font-bold uppercase">R{y + 1}</div>
-                      <div className={`text-12 font-mono font-bold ${points ? 'text-brand-text-secondary' : 'text-brand-text-muted/40'}`}>
-                        {points || 0}
-                      </div>
-                    </div>
+                    <tr
+                      key={team.teamId}
+                      className={`border-b border-[#1F2937]/40 transition-all group hover:bg-white/[0.02] ${
+                        fs ? 'h-[80px]' : ''
+                      } ${idx < 3 ? 'bg-[#7C3AED]/[0.02]' : ''} ${change === 'up' ? 'animate-pulse' : ''}`}
+                    >
+                      <td className="px-[18px] py-[14px]">
+                        <div className="flex items-center gap-[6px]">
+                          <span className={`font-bold font-mono ${fs ? 'text-[22px]' : 'text-[14px]'} ${
+                            idx === 0 ? 'text-yellow-400' :
+                            idx === 1 ? 'text-slate-300' :
+                            idx === 2 ? 'text-amber-500' :
+                            'text-[#4B5563]'
+                          }`}>
+                            {idx + 1}
+                          </span>
+                          {change === 'up' && <FiChevronUp size={12} className="text-emerald-400" />}
+                          {change === 'down' && <FiChevronDown size={12} className="text-red-400" />}
+                        </div>
+                      </td>
+
+                      <td className="px-[18px] py-[14px]">
+                        <div className="flex items-center gap-[10px]">
+                          <div className={`w-[28px] h-[28px] rounded-[7px] flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                            idx === 0 ? 'bg-yellow-400/15 text-yellow-400' :
+                            idx === 1 ? 'bg-slate-400/15 text-slate-300' :
+                            idx === 2 ? 'bg-amber-500/15 text-amber-500' :
+                            'bg-[#1F2937] text-[#6B7280]'
+                          }`}>
+                            {getInitials(team.teamName)}
+                          </div>
+                          <span className={`font-semibold group-hover:text-[#7C3AED] transition-colors ${
+                            fs ? 'text-[18px]' : 'text-[13px]'
+                          } ${idx < 3 ? 'text-white' : 'text-[#D1D5DB]'}`}>
+                            {team.teamName}
+                          </span>
+                        </div>
+                      </td>
+
+                      {filterYear === null ? (
+                        <>
+                          <td className="px-[14px] py-[14px] text-center">
+                            <div className="flex items-center justify-center gap-[5px]">
+                              <div className="w-[36px] h-[3px] bg-white/5 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500/60 rounded-full" style={{ width: `${team.avgEfficiency || 0}%` }} />
+                              </div>
+                              <span className={`font-mono font-semibold text-emerald-400/80 ${fs ? 'text-[16px]' : 'text-[12px]'}`}>
+                                {team.avgEfficiency !== undefined ? `${team.avgEfficiency}%` : '--'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-[14px] py-[14px] text-center">
+                            <span className={`font-mono text-[#9CA3AF] ${fs ? 'text-[14px]' : 'text-[11px]'}`}>
+                              {formatTime(team.totalTimeSpent)}
+                            </span>
+                          </td>
+                          {activeRounds.map(r => {
+                            const pts = team[`year${r}Points`] || 0;
+                            const eff = team[`year${r}Efficiency`] || 0;
+                            return (
+                              <td key={r} className="px-[12px] py-[14px] text-center group/cell">
+                                <div className="flex flex-col items-center">
+                                  <span className={`font-mono font-bold ${fs ? 'text-[16px]' : 'text-[13px]'} ${pts > 0 ? 'text-[#D1D5DB]' : 'text-[#374151]'}`}>
+                                    {pts > 0 ? pts : '--'}
+                                  </span>
+                                  {pts > 0 && (
+                                    <span className="text-[8px] font-mono text-emerald-500/60 opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                                      {eff}%
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          })}
+                          <td className="px-[18px] py-[14px] text-right">
+                            <span className={`font-bold font-mono tracking-tight ${fs ? 'text-[32px]' : 'text-[18px]'} ${
+                              idx === 0 ? 'text-yellow-400' : idx < 3 ? 'text-white' : 'text-[#D1D5DB]'
+                            }`}>
+                              {team.scoreSum || 0}
+                            </span>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-[14px] py-[14px] text-center">
+                            <span className={`font-mono font-bold text-white ${fs ? 'text-[22px]' : 'text-[16px]'}`}>
+                              {team[`year${filterYear}Points`] || 0}
+                            </span>
+                          </td>
+                          <td className="px-[14px] py-[14px] text-center">
+                            <span className={`font-mono font-bold text-emerald-400 ${fs ? 'text-[18px]' : 'text-[14px]'}`}>
+                              {team[`year${filterYear}Efficiency`] || 0}%
+                            </span>
+                          </td>
+                          <td className="px-[14px] py-[14px] text-center">
+                            <span className={`font-mono text-[#9CA3AF] ${fs ? 'text-[16px]' : 'text-[13px]'}`}>
+                              {team[`year${filterYear}Time`] ? `${team[`year${filterYear}Time`]}s` : '--'}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                    </tr>
                   );
                 })}
-              </div>
-            ) : (
-              <div className="flex items-center justify-between mt-8 text-12">
-                <span className="text-brand-text-muted uppercase font-bold text-[10px]">Eff: <span className="text-emerald-400">{team[`year${filterYear}Efficiency`] || 0}%</span></span>
-                <span className="text-brand-text-muted uppercase font-bold text-[10px]">Time: <span className="text-brand-text-secondary">{team[`year${filterYear}Time`] || 0}s</span></span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between mt-12 pt-12 border-t border-brand-border/30 text-11 text-brand-text-muted">
-              <span>Overall Eff: <span className="text-emerald-400 font-bold">{team.avgEfficiency !== undefined ? `${team.avgEfficiency}%` : '-'}</span></span>
-              <span>Total Time: <span className="font-mono">{team.totalTimeSpent !== undefined ? `${Math.floor(team.totalTimeSpent/60)}m ${team.totalTimeSpent%60}s` : '-'}</span></span>
-            </div>
-          </Card>
-        ))}
-      </div>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {leaderboard.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-64 rounded-2xl border border-brand-border/40 bg-brand-surface/20 shadow-inner overflow-hidden relative">
-          <div className="absolute inset-0 bg-gradient-to-t from-brand-primary/5 to-transparent pointer-events-none" />
-          <div className="bg-brand-elevated p-24 rounded-full border border-brand-border/40 mb-24 shadow-[0_0_40px_rgba(124,58,237,0.1)]">
-            <FiActivity size={48} className="text-brand-primary animate-pulse" />
+        <div className="flex flex-col items-center justify-center py-[64px] rounded-[16px] border border-[#1F2937]/40 bg-[#0B0F14]/50 overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-t from-[#7C3AED]/5 to-transparent pointer-events-none" />
+          <div className="bg-[#111827] p-[24px] rounded-full border border-[#1F2937] mb-[20px]">
+            <FiUsers size={40} className="text-[#7C3AED]/40" />
           </div>
-          <p className="text-16 font-bold uppercase tracking-[0.2em] text-brand-text-primary mb-8">Awaiting Unit Registration</p>
-          <p className="text-12 font-medium text-brand-text-muted">Global leaderboards will automatically populate upon first team initialization.</p>
+          <p className="text-[15px] font-bold text-[#9CA3AF] mb-[6px]">No Teams Yet</p>
+          <p className="text-[12px] text-[#6B7280]">Rankings will appear once teams start competing.</p>
         </div>
       )}
     </div>

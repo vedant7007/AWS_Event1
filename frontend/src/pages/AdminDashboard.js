@@ -35,7 +35,10 @@ import {
     FiChevronUp,
     FiPlusSquare,
     FiCopy,
-    FiCheckSquare
+    FiCheckSquare,
+    FiRadio,
+    FiSend,
+    FiMessageSquare
 } from 'react-icons/fi';
 
 const AdminDashboard = () => {
@@ -120,6 +123,12 @@ const AdminDashboard = () => {
   const [showInitBanner, setShowInitBanner] = useState(false);
   const timerRef = useRef(null);
   const [activeQuestionStats, setActiveQuestionStats] = useState({ answeredCount: 0, totalTeams: 0 });
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [broadcastType, setBroadcastType] = useState('info');
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const [broadcastHistory, setBroadcastHistory] = useState([]);
+  const [showBroadcastPanel, setShowBroadcastPanel] = useState(false);
+  const [roundSubs, setRoundSubs] = useState(null);
 
   useEffect(() => {
     let interval;
@@ -139,6 +148,42 @@ const AdminDashboard = () => {
       setActiveQuestionStats(res.data);
     } catch (err) {
       console.error('Stats fetch error:', err);
+    }
+  };
+
+  const fetchBroadcasts = async () => {
+    try {
+      const res = await adminAPI.getBroadcasts();
+      setBroadcastHistory(res.data.broadcasts || []);
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchBroadcasts();
+  }, []);
+
+  const handleSendBroadcast = async () => {
+    if (!broadcastMsg.trim()) return;
+    setBroadcastSending(true);
+    try {
+      await adminAPI.broadcast(broadcastMsg.trim(), broadcastType);
+      setMsg({ type: 'success', text: 'Broadcast sent to all teams.' });
+      setBroadcastMsg('');
+      fetchBroadcasts();
+    } catch (err) {
+      setMsg({ type: 'error', text: 'Failed to send broadcast.' });
+    } finally {
+      setBroadcastSending(false);
+    }
+  };
+
+  const handleClearBroadcasts = async () => {
+    try {
+      await adminAPI.clearBroadcasts();
+      setBroadcastHistory([]);
+      setMsg({ type: 'success', text: 'Broadcast history cleared.' });
+    } catch {
+      setMsg({ type: 'error', text: 'Failed to clear broadcasts.' });
     }
   };
 
@@ -211,7 +256,7 @@ const AdminDashboard = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (settings?.isRoundActive && settings?.roundStartedAt) {
       const computeLeft = () => {
-        const deadline = new Date(settings.roundStartedAt).getTime() + 30 * 60 * 1000;
+        const deadline = new Date(settings.roundStartedAt).getTime() + 20 * 60 * 1000;
         const left = Math.max(0, Math.round((deadline - Date.now()) / 1000));
         setRoundTimeLeft(left);
       };
@@ -222,7 +267,25 @@ const AdminDashboard = () => {
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [settings?.isRoundActive, settings?.roundStartedAt]);
-  
+
+  // Poll submission stats when round is active
+  useEffect(() => {
+    let subInterval;
+    if (settings?.isRoundActive && settings?.currentRound !== undefined) {
+      const fetchSubs = async () => {
+        try {
+          const res = await adminAPI.getRoundSubmissions(settings.currentRound);
+          setRoundSubs(res.data);
+        } catch (e) { /* ignore */ }
+      };
+      fetchSubs();
+      subInterval = setInterval(fetchSubs, 4000);
+    } else {
+      setRoundSubs(null);
+    }
+    return () => { if (subInterval) clearInterval(subInterval); };
+  }, [settings?.isRoundActive, settings?.currentRound]);
+
   useEffect(() => {
     if (newQ.type === 'truefalse') {
         setNewQ(prev => ({
@@ -603,6 +666,18 @@ const AdminDashboard = () => {
                 <FiPlus size={18} />
                 <span>Provision Units</span>
             </button>
+
+            <button
+                onClick={() => { setShowBroadcastPanel(!showBroadcastPanel); }}
+                className={`w-full flex items-center gap-[12px] px-[16px] py-[12px] rounded-[8px] transition-all duration-200 text-[14px] font-medium mt-[8px] ${
+                    showBroadcastPanel
+                    ? 'bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/20'
+                    : 'text-[#9CA3AF] hover:text-[#F9FAFB] hover:bg-white/5'
+                }`}
+            >
+                <FiRadio size={18} />
+                <span>Broadcast</span>
+            </button>
         </nav>
 
         <div className="p-[16px] mt-auto border-t border-[#1F2937]">
@@ -623,31 +698,58 @@ const AdminDashboard = () => {
       {/* Main Content Area */}
       <main className="flex-1 ml-[280px] p-[48px] min-h-screen relative">
         {/* Round Init Banner */}
-        {showInitBanner && settings?.isRoundActive && (
-            <div className="mb-[24px] p-[20px] rounded-[12px] border-2 border-[#7C3AED]/50 bg-[#7C3AED]/10 animate-in slide-in-from-top-4 duration-500 flex items-center justify-between">
-                <div className="flex items-center gap-[16px]">
-                    <FiZap className="text-[#7C3AED] animate-pulse" size={28} />
-                    <div>
-                        <div className="text-[16px] font-bold text-[#F9FAFB] uppercase tracking-widest">🚀 Round {(settings?.currentRound || 0) + 1} is LIVE</div>
-                        <div className="text-[12px] text-[#9CA3AF] mt-[2px]">30-minute countdown started. All teams can now submit.</div>
-                    </div>
-                </div>
-                <button onClick={() => setShowInitBanner(false)} className="text-[#9CA3AF] hover:text-white transition"><FiX size={18} /></button>
-            </div>
-        )}
-
-        {/* Active Round Timer Bar */}
+        {/* ── Live Round Panel ── */}
         {settings?.isRoundActive && roundTimeLeft !== null && (
-            <div className={`mb-[24px] p-[14px] rounded-[10px] border flex items-center gap-[16px] ${
-                roundTimeLeft < 300 ? 'border-red-500/40 bg-red-500/10' : 'border-yellow-500/30 bg-yellow-500/5'
+            <div className={`mb-[24px] rounded-[14px] border overflow-hidden ${
+                roundTimeLeft < 300 ? 'border-red-500/40 bg-red-500/5' : 'border-[#7C3AED]/30 bg-[#7C3AED]/5'
             }`}>
-                <FiClock className={roundTimeLeft < 300 ? 'text-red-400' : 'text-yellow-400'} size={20} />
-                <span className={`text-[14px] font-bold uppercase tracking-wider ${
-                    roundTimeLeft < 300 ? 'text-red-400' : 'text-yellow-400'
-                }`}>
-                    Round {(settings?.currentRound || 0) + 1} — Time Remaining: {Math.floor(roundTimeLeft / 60)}:{String(roundTimeLeft % 60).padStart(2, '0')}
-                </span>
-                {roundTimeLeft < 300 && <span className="text-[12px] font-bold text-red-300 animate-pulse ml-auto">⚠️ ROUND CLOSING SOON</span>}
+                {/* Timer row */}
+                <div className="px-[20px] py-[14px] flex items-center justify-between">
+                    <div className="flex items-center gap-[12px]">
+                        <div className={`w-[10px] h-[10px] rounded-full animate-pulse ${roundTimeLeft < 300 ? 'bg-red-500' : 'bg-[#7C3AED]'}`} />
+                        <span className="text-[14px] font-bold text-[#F9FAFB]">
+                            Round {(settings?.currentRound || 0) + 1} — LIVE
+                        </span>
+                        <span className={`text-[18px] font-bold tabular-nums ml-[8px] ${
+                            roundTimeLeft < 60 ? 'text-red-400 animate-pulse' : roundTimeLeft < 300 ? 'text-red-400' : 'text-[#F9FAFB]'
+                        }`}>
+                            {Math.floor(roundTimeLeft / 60)}:{String(roundTimeLeft % 60).padStart(2, '0')}
+                        </span>
+                    </div>
+                    {roundSubs?.allTeamsComplete && (
+                        <button
+                            onClick={() => handleStartStopRound(false)}
+                            className="px-[16px] py-[8px] bg-red-500 hover:bg-red-600 text-white text-[12px] font-bold uppercase tracking-wider rounded-[8px] transition-all flex items-center gap-[6px]"
+                        >
+                            <FiX size={14} /> Close Round Early
+                        </button>
+                    )}
+                </div>
+
+                {/* Submission stats row */}
+                {roundSubs && (
+                    <div className="px-[20px] py-[12px] border-t border-[#1F2937] bg-[#0B0F14]/50 flex flex-wrap items-center gap-[16px]">
+                        <div className="flex items-center gap-[6px]">
+                            <span className="text-[11px] text-[#6B7280] font-medium">Teams:</span>
+                            <span className="text-[13px] font-bold text-[#F9FAFB]">{roundSubs.totalTeams}</span>
+                        </div>
+                        <div className="h-[14px] w-[1px] bg-[#1F2937]" />
+                        {[
+                            { label: 'CTO', count: roundSubs.ctoSubmitted, color: '#7C3AED' },
+                            { label: 'CFO', count: roundSubs.cfoSubmitted, color: '#f59e0b' },
+                            { label: 'PM', count: roundSubs.pmSubmitted, color: '#10b981' },
+                        ].map(({ label, count, color }) => (
+                            <div key={label} className="flex items-center gap-[6px]">
+                                <span className="text-[10px] font-bold uppercase px-[5px] py-[1px] rounded" style={{ color, background: `${color}15`, border: `1px solid ${color}30` }}>{label}</span>
+                                <span className="text-[13px] font-bold text-[#F9FAFB]">{count}<span className="text-[#6B7280]">/{roundSubs.totalTeams}</span></span>
+                            </div>
+                        ))}
+                        <div className="h-[14px] w-[1px] bg-[#1F2937]" />
+                        <span className={`text-[11px] font-bold ${roundSubs.allTeamsComplete ? 'text-emerald-400' : 'text-[#6B7280]'}`}>
+                            {roundSubs.allTeamsComplete ? '✓ All teams submitted' : `${roundSubs.teams?.filter(t => t.allDone).length || 0}/${roundSubs.totalTeams} complete`}
+                        </span>
+                    </div>
+                )}
             </div>
         )}
 
@@ -665,6 +767,94 @@ const AdminDashboard = () => {
                  <button onClick={() => setMsg({type:'', text:''})} className="opacity-50 hover:opacity-100 transition">
                     <FiX size={18} />
                  </button>
+            </div>
+        )}
+
+        {/* Broadcast Panel */}
+        {showBroadcastPanel && (
+            <div className="mb-[24px] rounded-[12px] border border-[#F59E0B]/20 bg-[#111827] overflow-hidden">
+                <div className="p-[20px] border-b border-[#1F2937] flex items-center justify-between">
+                    <div className="flex items-center gap-[10px]">
+                        <FiRadio className="text-[#F59E0B]" size={18} />
+                        <h3 className="text-[16px] font-semibold text-[#F9FAFB]">Broadcast Center</h3>
+                    </div>
+                    <button onClick={() => setShowBroadcastPanel(false)} className="text-[#6B7280] hover:text-[#F9FAFB] transition-colors">
+                        <FiX size={16} />
+                    </button>
+                </div>
+                <div className="p-[20px]">
+                    <div className="flex gap-[12px] mb-[12px]">
+                        <div className="flex-1">
+                            <textarea
+                                value={broadcastMsg}
+                                onChange={(e) => setBroadcastMsg(e.target.value)}
+                                placeholder="Type your announcement to all teams..."
+                                rows={2}
+                                className="w-full bg-[#0B0F14] border border-[#1F2937] rounded-[8px] px-[14px] py-[10px] text-[14px] text-[#F9FAFB] placeholder-[#4B5563] focus:border-[#F59E0B]/50 focus:outline-none resize-none"
+                                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendBroadcast(); } }}
+                            />
+                        </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-[8px]">
+                            {['info', 'warning', 'alert', 'success'].map(t => {
+                                const colors = {
+                                    info: { active: 'bg-[#7C3AED]/20 text-[#7C3AED] border-[#7C3AED]/30', idle: 'text-[#6B7280] border-[#1F2937] hover:border-[#374151]' },
+                                    warning: { active: 'bg-[#F59E0B]/20 text-[#F59E0B] border-[#F59E0B]/30', idle: 'text-[#6B7280] border-[#1F2937] hover:border-[#374151]' },
+                                    alert: { active: 'bg-[#EF4444]/20 text-[#EF4444] border-[#EF4444]/30', idle: 'text-[#6B7280] border-[#1F2937] hover:border-[#374151]' },
+                                    success: { active: 'bg-[#10B981]/20 text-[#10B981] border-[#10B981]/30', idle: 'text-[#6B7280] border-[#1F2937] hover:border-[#374151]' },
+                                };
+                                return (
+                                    <button
+                                        key={t}
+                                        onClick={() => setBroadcastType(t)}
+                                        className={`px-[12px] py-[6px] rounded-[6px] text-[11px] font-bold uppercase tracking-wider border transition-all ${
+                                            broadcastType === t ? colors[t].active : colors[t].idle
+                                        }`}
+                                    >
+                                        {t}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <button
+                            onClick={handleSendBroadcast}
+                            disabled={!broadcastMsg.trim() || broadcastSending}
+                            className="flex items-center gap-[8px] px-[20px] py-[8px] rounded-[8px] bg-[#F59E0B] text-[#0B0F14] text-[13px] font-bold uppercase tracking-wider hover:bg-[#D97706] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        >
+                            <FiSend size={14} />
+                            {broadcastSending ? 'Sending...' : 'Broadcast'}
+                        </button>
+                    </div>
+
+                    {/* Broadcast History */}
+                    {broadcastHistory.length > 0 && (
+                        <div className="mt-[16px] pt-[16px] border-t border-[#1F2937]">
+                            <div className="flex items-center justify-between mb-[10px]">
+                                <span className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">Recent Broadcasts</span>
+                                <button onClick={handleClearBroadcasts} className="text-[11px] text-red-400 hover:text-red-300 font-medium transition-colors">Clear All</button>
+                            </div>
+                            <div className="flex flex-col gap-[6px] max-h-[200px] overflow-y-auto custom-scrollbar">
+                                {[...broadcastHistory].reverse().slice(0, 10).map((b, i) => {
+                                    const typeColors = {
+                                        info: 'border-l-[#7C3AED]',
+                                        warning: 'border-l-[#F59E0B]',
+                                        alert: 'border-l-[#EF4444]',
+                                        success: 'border-l-[#10B981]',
+                                    };
+                                    return (
+                                        <div key={i} className={`pl-[12px] py-[8px] border-l-2 ${typeColors[b.type] || typeColors.info} bg-[#0B0F14]/50 rounded-r-[6px]`}>
+                                            <p className="text-[13px] text-[#D1D5DB]">{b.message}</p>
+                                            <p className="text-[10px] text-[#4B5563] mt-[2px]">
+                                                {new Date(b.timestamp).toLocaleTimeString()} — {b.type}
+                                            </p>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         )}
 
@@ -1720,308 +1910,271 @@ const AdminDashboard = () => {
                             <h3 className="text-[20px] font-semibold text-red-500 mb-[4px] flex items-center">
                                 <FiAlertCircle className="mr-8" /> Danger Zone
                             </h3>
-                            <p className="text-[14px] text-[#9CA3AF]">Reset the entire competition back to Round 1. This wipes all progress but keeps teams and questions.</p>
+                            <p className="text-[14px] text-[#9CA3AF]">Irreversible actions. Double confirmation required.</p>
                         </div>
-                        
+
+                        <div className="flex flex-col gap-[16px]">
+                            {/* Partial Reset */}
+                            <div className="flex items-center justify-between p-[16px] bg-[#0B0F14] rounded-[12px] border border-[#1F2937]">
+                                <div>
+                                    <p className="text-[14px] font-semibold text-[#F9FAFB]">Reset All Progress</p>
+                                    <p className="text-[12px] text-[#6B7280]">Wipes all scores, submissions & round data. Keeps teams & questions intact.</p>
+                                </div>
+                                <button
+                                    onClick={() => handleReset('partial')}
+                                    className="shrink-0 ml-[16px] px-[20px] py-[10px] bg-red-500/10 border border-red-500/30 text-red-400 text-[12px] font-bold uppercase tracking-wider rounded-[10px] hover:bg-red-500/20 hover:border-red-500/50 transition-all"
+                                >
+                                    Reset Progress
+                                </button>
+                            </div>
+
+                        </div>
                      </Card>
                 </div>
             )}
 
             {activeTab === 'register' && (
-                <div className="max-w-[1000px] mx-auto animate-in fade-in duration-500">
-                    <div className="mb-[32px] flex justify-between items-end">
-                        <div>
-                            <h2 className="text-[32px] font-semibold text-[#F9FAFB] tracking-tight">Provision Units</h2>
-                            <p className="text-[14px] text-[#9CA3AF] mt-[4px]">Register a new unit or view existing deployment credentials.</p>
-                        </div>
-                        <Button 
-                            variant="primary" 
-                            onClick={() => setCreatedTeamId(null)}
-                            className="h-40 px-16 text-12 mb-4"
-                        >
-                            <FiPlus className="mr-8" /> REGISTER NEW
-                        </Button>
+                <div className="max-w-[1100px] mx-auto animate-in fade-in duration-500">
+                    <div className="mb-[28px]">
+                        <h2 className="text-[28px] font-bold text-[#F9FAFB] tracking-tight">Teams & Credentials</h2>
+                        <p className="text-[14px] text-[#9CA3AF] mt-[4px]">Register new teams and view/copy login credentials for all participants.</p>
                     </div>
 
-                        <div className="flex flex-col gap-32">
-                            {/* REGISTER NEW TEAM FORM */}
-                            <Card className="p-[40px]">
-                                <form onSubmit={async (e) => {
-                                    e.preventDefault();
-                                    try {
-                                        const res = await adminAPI.registerTeam(newTeam);
-                                        setCreatedTeamId(res.data.teamId);
-                                        setMsg({ type: 'success', text: `Unit Registered. TEAM ID: ${res.data.teamId}` });
-                                        // Refresh teams list
-                                        const tms = await adminAPI.getTeams();
-                                        setTeams(tms.data.teams || []);
-                                        
-                                        // Automatically show passwords for the newly created team
-                                        const nextVisible = { ...visiblePasswords };
-                                        res.data.members.forEach((m, idx) => {
-                                            nextVisible[`${res.data._id}-${idx}`] = true;
-                                        });
-                                        setVisiblePasswords(nextVisible);
+                    <div className="flex flex-col gap-[24px]">
 
-                                    } catch (err) {
-                                        setMsg({ type: 'error', text: err.response?.data?.error || 'Registration failed.' });
-                                    }
-                                }} className="flex flex-col gap-[32px]">
+                        {/* ── Registration Form ── */}
+                        <Card className="p-[32px]">
+                            <h3 className="text-[16px] font-bold text-[#F9FAFB] mb-[20px] flex items-center gap-[8px]">
+                                <FiPlus size={16} className="text-[#7C3AED]" /> Register New Team
+                            </h3>
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                try {
+                                    const res = await adminAPI.registerTeam(newTeam);
+                                    setCreatedTeamId(res.data.teamId);
+                                    setMsg({ type: 'success', text: `Team registered! ID: ${res.data.teamId}` });
+                                    const tms = await adminAPI.getTeams();
+                                    setTeams(tms.data.teams || []);
+                                } catch (err) {
+                                    setMsg({ type: 'error', text: err.response?.data?.error || 'Registration failed.' });
+                                }
+                            }} className="flex flex-col gap-[20px]">
 
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px]">
+                                    <div className="flex flex-col gap-[6px]">
+                                        <label className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider">Team Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter team name"
+                                            value={newTeam.teamName}
+                                            onChange={e => setNewTeam({...newTeam, teamName: e.target.value})}
+                                            className="w-full px-[14px] py-[10px] bg-[#0B0F14] border border-[#1F2937] rounded-[8px] text-[14px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-[6px]">
+                                        <label className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider">College</label>
+                                        <input
+                                            type="text"
+                                            placeholder="College name"
+                                            value={newTeam.college || ''}
+                                            onChange={e => setNewTeam({...newTeam, college: e.target.value})}
+                                            className="w-full px-[14px] py-[10px] bg-[#0B0F14] border border-[#1F2937] rounded-[8px] text-[14px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-[6px]">
+                                        <label className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider">Department</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Department"
+                                            value={newTeam.department || ''}
+                                            onChange={e => setNewTeam({...newTeam, department: e.target.value})}
+                                            className="w-full px-[14px] py-[10px] bg-[#0B0F14] border border-[#1F2937] rounded-[8px] text-[14px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all"
+                                        />
+                                    </div>
+                                </div>
 
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-[24px]">
-                                        <div className="flex flex-col gap-[8px]">
-                                            <label className="text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest px-[4px]">Team Identity</label>
-                                            <input 
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-[12px]">
+                                    {newTeam.members.map((member, idx) => (
+                                        <div key={idx} className="p-[16px] bg-[#0B0F14] rounded-[10px] border border-[#1F2937] flex flex-col gap-[12px]">
+                                            <span className="text-[11px] font-bold text-[#7C3AED] uppercase tracking-widest">{member.role}</span>
+                                            <input
                                                 type="text"
-                                                placeholder="Enter Team Name"
-                                                value={newTeam.teamName}
-                                                onChange={e => setNewTeam({...newTeam, teamName: e.target.value})}
-                                                className="w-full px-[16px] py-[12px] bg-[#111827] border border-[#1F2937] rounded-[8px] text-[14px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all"
+                                                placeholder="Member name"
+                                                value={member.name}
+                                                onChange={e => {
+                                                    const m = [...newTeam.members];
+                                                    m[idx].name = e.target.value;
+                                                    setNewTeam({...newTeam, members: m});
+                                                }}
+                                                className="w-full px-[12px] py-[8px] bg-[#111827] border border-[#1F2937] rounded-[6px] text-[13px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all"
+                                                required
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="Password"
+                                                value={member.password}
+                                                onChange={e => {
+                                                    const m = [...newTeam.members];
+                                                    m[idx].password = e.target.value;
+                                                    setNewTeam({...newTeam, members: m});
+                                                }}
+                                                className="w-full px-[12px] py-[8px] bg-[#111827] border border-[#1F2937] rounded-[6px] text-[13px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all font-mono"
                                                 required
                                             />
                                         </div>
-                                        <div className="flex flex-col gap-[8px]">
-                                            <label className="text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest px-[4px]">Cloud Domain</label>
-                                            <input 
-                                                type="text"
-                                                placeholder="team1.aws-tycoon.com"
-                                                value={newTeam.domain}
-                                                onChange={e => setNewTeam({...newTeam, domain: e.target.value})}
-                                                className="w-full px-[16px] py-[12px] bg-[#111827] border border-[#1F2937] rounded-[8px] text-[14px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all font-mono"
-                                            />
-                                        </div>
-                                        <div className="flex flex-col gap-[8px]">
-                                            <label className="text-[12px] font-medium text-[#9CA3AF] uppercase tracking-widest px-[4px]">Starting Population</label>
-                                            <input 
-                                                type="number"
-                                                value={newTeam.population}
-                                                onChange={e => setNewTeam({...newTeam, population: Number(e.target.value)})}
-                                                className="w-full px-[16px] py-[12px] bg-[#111827] border border-[#1F2937] rounded-[8px] text-[14px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all font-mono"
-                                            />
-                                        </div>
-                                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-[24px]">
-                                        {newTeam.members.map((member, idx) => (
-                                            <div key={idx} className="flex flex-col gap-[16px] p-[20px] bg-[#111827] rounded-[12px] border border-[#1F2937]">
-                                                <span className="text-[12px] font-bold text-[#7C3AED] uppercase tracking-widest">{member.role}</span>
-                                                <div className="flex flex-col gap-[8px]">
-                                                    <label className="text-[10px] font-medium text-[#9CA3AF] uppercase">Name</label>
-                                                    <input 
-                                                        type="text"
-                                                        placeholder="Operator Name"
-                                                        value={member.name}
-                                                        onChange={e => {
-                                                            const m = [...newTeam.members];
-                                                            m[idx].name = e.target.value;
-                                                            setNewTeam({...newTeam, members: m});
-                                                        }}
-                                                        className="w-full px-[12px] py-[8px] bg-[#0B0F14] border border-[#1F2937] rounded-[6px] text-[13px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all"
-                                                        required
-                                                    />
-                                                </div>
-                                                <div className="flex flex-col gap-[8px]">
-                                                    <label className="text-[10px] font-medium text-[#9CA3AF] uppercase">Password</label>
-                                                    <div className="relative">
-                                                        <input 
-                                                            type="text"
-                                                            placeholder="••••••••"
-                                                            value={member.password}
-                                                            onChange={e => {
-                                                                const m = [...newTeam.members];
-                                                                m[idx].password = e.target.value;
-                                                                setNewTeam({...newTeam, members: m});
-                                                            }}
-                                                            className="w-full px-[12px] py-[8px] bg-[#0B0F14] border border-[#1F2937] rounded-[6px] text-[13px] text-[#F9FAFB] focus:border-[#7C3AED] focus:outline-none transition-all"
-                                                            required
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <Button type="submit" className="w-full h-[56px] mt-[16px]">
-                                        <FiPlus size={20} className="mr-[8px]" />
-                                        <span className="text-[16px] uppercase tracking-wider">Initialize Team Deployment</span>
-                                    </Button>
-                                </form>
-                            </Card>
-
-                            {/* REGISTERED TEAMS LIST WITH PASSWORDS */}
-                            <Card className="p-0 overflow-hidden border-[#1F2937]">
-                                <div className="px-24 py-16 bg-[#111827] border-b border-[#1F2937] flex items-center justify-between">
-                                    <h3 className="text-16 font-bold text-[#F9FAFB] uppercase tracking-wider">Deployment Registry</h3>
-                                    <span className="text-12 text-[#9CA3AF] font-medium">{teams.length} Teams Online</span>
+                                    ))}
                                 </div>
-                                <div className="overflow-x-auto max-h-[600px] overflow-y-auto hidden-scrollbar">
-                                    <table className="w-full text-left border-collapse">
-                                        <thead className="bg-[#0F172A] border-b border-[#1F2937] sticky top-0 z-10">
-                                            <tr>
-                                                <th className="px-16 py-12 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-widest">Team ID</th>
-                                                <th className="px-16 py-12 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-widest">Team Name</th>
-                                                <th className="px-16 py-12 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-widest">Domain</th>
-                                                <th className="px-16 py-12 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-widest">Population</th>
-                                                <th className="px-16 py-12 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-widest">Operator (Role)</th>
-                                                <th className="px-16 py-12 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-widest border-l border-[#1F2937]">
-                                                    <div className="flex items-center justify-between">
-                                                        <span>Password</span>
-                                                        <button 
-                                                            onClick={() => {
-                                                                const newState = !showRegistryPasswords;
-                                                                setShowRegistryPasswords(newState);
-                                                                // Toggle all individual ones too
-                                                                const nextVisible = {};
-                                                                teams.forEach(t => t.members.forEach((m, idx) => {
-                                                                    nextVisible[`${t._id}-${idx}`] = newState;
-                                                                }));
-                                                                setVisiblePasswords(nextVisible);
-                                                            }} 
-                                                            className="text-[#7C3AED] hover:text-[#A78BFA] transition-all"
-                                                        >
-                                                            {showRegistryPasswords ? <FiEyeOff size={14} /> : <FiEye size={14} />}
-                                                        </button>
-                                                    </div>
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-[#1F2937]">
-                                            {teams.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan={6} className="px-24 py-48 text-center text-[#4B5563] text-[14px]">
-                                                        No teams registered in the command cluster yet.
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                teams.map((team) => (
-                                                    <React.Fragment key={team._id}>
-                                                        {team.members.map((member, mIdx) => {
-                                                            const passVisible = showRegistryPasswords || visiblePasswords[`${team._id}-${mIdx}`];
-                                                            return (
-                                                                <tr key={`${team._id}-${mIdx}`} className={`hover:bg-white/[0.02] transition-colors ${mIdx === 0 ? 'bg-white/[0.01]' : ''}`}>
-                                                                    {mIdx === 0 && (
-                                                                        <>
-                                                                            <td className="px-16 py-12 align-top" rowSpan={3}>
-                                                                                <span className="font-mono text-[14px] text-[#7C3AED] font-bold">{team.teamId}</span>
-                                                                            </td>
-                                                                            <td className="px-16 py-12 align-top" rowSpan={3}>
-                                                                                <span className="text-[14px] font-semibold text-[#F9FAFB]">{team.teamName}</span>
-                                                                            </td>
-                                                                            <td className="px-16 py-12 align-top" rowSpan={3}>
-                                                                                <span className="text-[12px] font-mono text-[#9CA3AF]">{team.domain || '---'}</span>
-                                                                            </td>
-                                                                            <td className="px-16 py-12 align-top" rowSpan={3}>
-                                                                                <span className="text-[12px] font-mono text-[#D1D5DB]">{team.population?.toLocaleString() || '---'}</span>
-                                                                            </td>
-                                                                        </>
-                                                                    )}
-                                                                    <td className="px-16 py-12">
-                                                                        <div className="flex items-center gap-8">
-                                                                            <span className="text-[13px] text-[#D1D5DB]">{member.name || '---'}</span>
-                                                                            <span className="text-[9px] font-bold text-[#7C3AED] bg-[#7C3AED]/10 px-6 py-2 rounded border border-[#7C3AED]/20 uppercase">{member.role}</span>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="px-16 py-12 border-l border-[#1F2937]">
-                                                                        <div className="flex items-center justify-between gap-8">
-                                                                            <input 
-                                                                                type={passVisible ? 'text' : 'password'}
-                                                                                value={member.password}
-                                                                                readOnly
-                                                                                className="w-full bg-transparent border-none p-0 text-[14px] font-mono text-emerald-400 font-black tracking-[0.2em] focus:outline-none"
-                                                                            />
-                                                                            <div className="flex items-center gap-4">
-                                                                                <button 
-                                                                                    onClick={() => copyToClipboard(member.password, "Access Key")}
-                                                                                    className="p-4 text-[#4B5563] hover:text-emerald-400 transition-all"
-                                                                                    title="Copy Key"
-                                                                                >
-                                                                                    <FiCopy size={14} />
-                                                                                </button>
-                                                                                <button 
-                                                                                    onClick={() => {
-                                                                                        setVisiblePasswords(prev => ({
-                                                                                            ...prev,
-                                                                                            [`${team._id}-${mIdx}`]: !prev[`${team._id}-${mIdx}`]
-                                                                                        }));
-                                                                                    }} 
-                                                                                    className="p-4 text-[#4B5563] hover:text-[#7C3AED] transition-all"
-                                                                                >
-                                                                                    {passVisible ? <FiEyeOff size={14} /> : <FiEye size={14} />}
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    </React.Fragment>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
+
+                                <Button type="submit" className="w-full h-[48px]">
+                                    <FiPlus size={18} className="mr-[8px]" />
+                                    <span className="text-[14px] font-bold uppercase tracking-wider">Register Team</span>
+                                </Button>
+                            </form>
+                        </Card>
+
+                        {/* ── Newly Created Team Banner ── */}
+                        {createdTeamId && (
+                            <Card className="p-[28px] border-emerald-500/20 bg-emerald-500/5">
+                                <div className="flex items-center gap-[12px] mb-[20px]">
+                                    <FiCheckCircle className="text-emerald-500" size={22} />
+                                    <h3 className="text-[16px] font-bold text-emerald-400">Team Registered Successfully</h3>
                                 </div>
-                            </Card>
-
-                            {/* LAST CREATED TEAM DETAILS AT BOTTOM */}
-                            {createdTeamId && (
-                                <Card className="p-[48px] border-emerald-500/20 bg-emerald-500/5 animate-in slide-in-from-bottom-4 duration-500">
-                                    <div className="flex flex-col items-center text-center mb-[32px]">
-                                        <div className="w-[80px] h-[80px] bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-[24px]">
-                                            <FiCheckCircle className="text-emerald-500" size={40} />
-                                        </div>
-                                        <h3 className="text-[24px] font-semibold text-[#F9FAFB] mb-[8px]">Newly Provisioned Unit Details</h3>
-                                        <p className="text-[#9CA3AF]">Current active credentials for the last registered team.</p>
-                                    </div>
-
-                                    {/* Team ID Banner */}
-                                    <div className="bg-[#0B0F14] border border-emerald-500/30 p-[24px] rounded-[12px] mb-[24px] text-center">
-                                        <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-[0.25em] block mb-[8px]">Team ID (shared by all members)</span>
-                                        <span className="text-[40px] font-mono font-bold text-[#F9FAFB] tracking-tighter">{createdTeamId}</span>
-                                        <div className="text-[14px] font-semibold text-white mt-4">{newTeam.teamName}</div>
-                                    </div>
-
-                                    {/* Member Credentials Grid */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px] mb-[32px]">
-                                        {newTeam.members.map((member, idx) => (
-                                            <div key={idx} className="bg-[#0B0F14] border border-[#1F2937] rounded-[12px] p-[20px] flex flex-col gap-[12px]">
-                                                <span className="text-[10px] font-bold text-[#7C3AED] uppercase tracking-widest border-b border-[#1F2937] pb-[8px]">{member.role}</span>
-                                                <div>
-                                                    <div className="text-[10px] text-[#9CA3AF] uppercase tracking-widest mb-[4px]">Name</div>
-                                                    <div className="text-[14px] font-semibold text-[#F9FAFB]">{member.name || '—'}</div>
-                                                </div>
-                                                <div className="mt-[4px]">
-                                                    <div className="text-[10px] text-[#9CA3AF] uppercase tracking-widest mb-[4px]">Access Key</div>
-                                                    <div className="text-[14px] font-mono font-bold text-emerald-400 bg-emerald-400/5 px-[8px] py-[4px] rounded border border-emerald-400/20">{member.password}</div>
-                                                </div>
+                                <div className="bg-[#0B0F14] border border-emerald-500/20 rounded-[10px] p-[20px] text-center mb-[20px]">
+                                    <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block mb-[6px]">Team ID — share with all members</span>
+                                    <span className="text-[32px] font-mono font-bold text-[#F9FAFB]">{createdTeamId}</span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-[12px] mb-[16px]">
+                                    {newTeam.members.map((member, idx) => (
+                                        <div key={idx} className="bg-[#0B0F14] border border-[#1F2937] rounded-[10px] p-[16px] flex flex-col gap-[8px]">
+                                            <span className="text-[10px] font-bold text-[#7C3AED] uppercase tracking-widest">{member.role}</span>
+                                            <div className="text-[13px] font-semibold text-[#F9FAFB]">{member.name}</div>
+                                            <div className="flex items-center gap-[6px]">
+                                                <span className="text-[13px] font-mono font-bold text-emerald-400 bg-emerald-400/5 px-[8px] py-[3px] rounded border border-emerald-400/20 flex-1">{member.password}</span>
+                                                <button onClick={() => copyToClipboard(member.password, "Password")} className="p-[4px] text-[#6B7280] hover:text-emerald-400 transition-all"><FiCopy size={13} /></button>
                                             </div>
-                                        ))}
-                                    </div>
-                                    
-                                    <div className="flex justify-center">
-                                        <Button 
-                                            variant="secondary" 
-                                            onClick={() => {
-                                                setCreatedTeamId(null);
-                                                setNewTeam({
-                                                    teamName: '',
-                                                    domain: '',
-                                                    population: 100,
-                                                    members: [
-                                                        { name: '', role: 'cto', password: '' },
-                                                        { name: '', role: 'cfo', password: '' },
-                                                        { name: '', role: 'pm', password: '' }
-                                                    ]
-                                                });
-                                            }}
-                                            className="px-32"
-                                        >
-                                            Dismiss & Clear Form
-                                        </Button>
-                                    </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setCreatedTeamId(null);
+                                        setNewTeam({ teamName: '', domain: '', college: '', department: '', population: 100, members: [{ name: '', role: 'cto', password: '' }, { name: '', role: 'cfo', password: '' }, { name: '', role: 'pm', password: '' }] });
+                                    }}
+                                    className="text-[12px] text-[#6B7280] hover:text-[#9CA3AF] transition-all"
+                                >
+                                    Dismiss
+                                </button>
+                            </Card>
+                        )}
+
+                        {/* ── All Teams with Credentials ── */}
+                        <div>
+                            <div className="flex items-center justify-between mb-[16px]">
+                                <h3 className="text-[16px] font-bold text-[#F9FAFB]">All Teams ({teams.length})</h3>
+                                <button
+                                    onClick={() => {
+                                        const newState = !showRegistryPasswords;
+                                        setShowRegistryPasswords(newState);
+                                        const nextVisible = {};
+                                        teams.forEach(t => t.members.forEach((m, idx) => { nextVisible[`${t._id || t.teamId}-${idx}`] = newState; }));
+                                        setVisiblePasswords(nextVisible);
+                                    }}
+                                    className="flex items-center gap-[6px] text-[12px] font-medium text-[#7C3AED] hover:text-[#A78BFA] transition-all"
+                                >
+                                    {showRegistryPasswords ? <FiEyeOff size={14} /> : <FiEye size={14} />}
+                                    {showRegistryPasswords ? 'Hide All Passwords' : 'Show All Passwords'}
+                                </button>
+                            </div>
+
+                            {teams.length === 0 ? (
+                                <Card className="p-[48px] text-center">
+                                    <p className="text-[14px] text-[#6B7280]">No teams registered yet.</p>
                                 </Card>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-[16px]">
+                                    {teams.map((team) => (
+                                        <Card key={team._id || team.teamId} className="p-[20px] hover:border-[#7C3AED]/20 transition-all">
+                                            {/* Team header */}
+                                            <div className="flex items-start justify-between mb-[14px]">
+                                                <div>
+                                                    <div className="flex items-center gap-[8px] mb-[2px]">
+                                                        <span className="text-[15px] font-bold text-[#F9FAFB]">{team.teamName}</span>
+                                                        <span className="text-[10px] font-bold text-[#7C3AED] bg-[#7C3AED]/10 px-[6px] py-[1px] rounded border border-[#7C3AED]/20">{team.points || 0} pts</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-[6px]">
+                                                        <span className="text-[12px] font-mono text-[#7C3AED]">{team.teamId}</span>
+                                                        <button onClick={() => copyToClipboard(team.teamId, "Team ID")} className="text-[#4B5563] hover:text-[#7C3AED] transition-all"><FiCopy size={11} /></button>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-[6px]">
+                                                    <span className={`text-[10px] font-bold uppercase px-[8px] py-[3px] rounded-full ${
+                                                        team.status === 'registered' ? 'text-emerald-400 bg-emerald-400/10 border border-emerald-400/20' :
+                                                        team.status === 'playing' ? 'text-amber-400 bg-amber-400/10 border border-amber-400/20' :
+                                                        'text-[#6B7280] bg-[#1F2937] border border-[#374151]'
+                                                    }`}>
+                                                        {team.status || 'registered'}
+                                                    </span>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!window.confirm(`Delete team "${team.teamName}" (${team.teamId})? This removes the team and all their submissions permanently.`)) return;
+                                                            try {
+                                                                await adminAPI.deleteTeam(team.teamId);
+                                                                setTeams(prev => prev.filter(t => t.teamId !== team.teamId));
+                                                                setMsg({ type: 'success', text: `Team ${team.teamName} deleted.` });
+                                                            } catch (err) {
+                                                                setMsg({ type: 'error', text: err.response?.data?.error || 'Delete failed.' });
+                                                            }
+                                                        }}
+                                                        className="p-[4px] text-[#374151] hover:text-red-500 transition-all"
+                                                        title="Delete team"
+                                                    >
+                                                        <FiTrash2 size={13} />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {team.college && (
+                                                <p className="text-[11px] text-[#6B7280] mb-[12px]">{team.college}{team.department ? ` — ${team.department}` : ''}</p>
+                                            )}
+
+                                            {/* Members with passwords */}
+                                            <div className="flex flex-col gap-[8px]">
+                                                {team.members.map((member, mIdx) => {
+                                                    const passKey = `${team._id || team.teamId}-${mIdx}`;
+                                                    const passVisible = showRegistryPasswords || visiblePasswords[passKey];
+                                                    return (
+                                                        <div key={mIdx} className="flex items-center gap-[10px] p-[10px] bg-[#0B0F14] rounded-[8px] border border-[#1F2937]">
+                                                            <span className="text-[9px] font-bold text-[#7C3AED] bg-[#7C3AED]/10 px-[6px] py-[2px] rounded uppercase w-[36px] text-center shrink-0">{member.role}</span>
+                                                            <span className="text-[13px] text-[#D1D5DB] font-medium min-w-[80px]">{member.name || '—'}</span>
+                                                            <div className="flex-1 flex items-center gap-[6px] ml-auto justify-end">
+                                                                <span className={`text-[12px] font-mono ${passVisible ? 'text-emerald-400' : 'text-[#374151]'}`}>
+                                                                    {passVisible ? (member.password || '—') : '••••••••'}
+                                                                </span>
+                                                                <button
+                                                                    onClick={() => copyToClipboard(member.password, `${member.name}'s password`)}
+                                                                    className="p-[3px] text-[#4B5563] hover:text-emerald-400 transition-all"
+                                                                    title="Copy password"
+                                                                >
+                                                                    <FiCopy size={12} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setVisiblePasswords(prev => ({ ...prev, [passKey]: !prev[passKey] }))}
+                                                                    className="p-[3px] text-[#4B5563] hover:text-[#7C3AED] transition-all"
+                                                                >
+                                                                    {passVisible ? <FiEyeOff size={12} /> : <FiEye size={12} />}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </Card>
+                                    ))}
+                                </div>
                             )}
                         </div>
+                    </div>
                 </div>
             )}
         </div>

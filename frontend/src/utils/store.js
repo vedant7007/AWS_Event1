@@ -86,6 +86,7 @@ export const useGameStore = create(
     {
       name: 'cloud-tycoon-store',
       partialize: (state) => ({
+        isLoggedIn: state.isLoggedIn,
         token: state.token,
         userId: state.userId,
         teamId: state.teamId,
