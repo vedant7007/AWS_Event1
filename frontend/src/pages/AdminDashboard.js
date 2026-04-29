@@ -253,6 +253,7 @@ const AdminDashboard = () => {
   }, []);
 
   // Countdown timer effect — recalculates every second from roundStartedAt
+  // Auto-stops round when timer hits 0
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (settings?.isRoundActive && settings?.roundStartedAt) {
@@ -260,6 +261,10 @@ const AdminDashboard = () => {
         const deadline = new Date(settings.roundStartedAt).getTime() + 20 * 60 * 1000;
         const left = Math.max(0, Math.round((deadline - Date.now()) / 1000));
         setRoundTimeLeft(left);
+        if (left <= 0) {
+          clearInterval(timerRef.current);
+          handleStartStopRound(false, settings.currentRound);
+        }
       };
       computeLeft();
       timerRef.current = setInterval(computeLeft, 1000);
@@ -267,6 +272,7 @@ const AdminDashboard = () => {
       setRoundTimeLeft(null);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.isRoundActive, settings?.roundStartedAt]);
 
   // Poll submission stats when round is active
