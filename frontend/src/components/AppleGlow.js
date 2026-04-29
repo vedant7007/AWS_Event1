@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const AppleGlow = ({ borderWidth = 2, speed = 3 }) => {
+const AppleGlow = ({ borderWidth = 6, speed = 3, radius = 16 }) => {
   const ref = useRef(null);
   const animRef = useRef(null);
 
@@ -22,10 +22,11 @@ const AppleGlow = ({ borderWidth = 2, speed = 3 }) => {
       ref={ref}
       className="absolute inset-0 pointer-events-none z-[1]"
       style={{
+        borderRadius: `${radius}px`,
         padding: `${borderWidth}px`,
-        WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+        WebkitMask: `linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)`,
         WebkitMaskComposite: 'xor',
-        mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+        mask: `linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)`,
         maskComposite: 'exclude',
       }}
     />

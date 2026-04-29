@@ -2117,7 +2117,7 @@ const AdminDashboard = () => {
         {isFullScreenLeaderboard && (
             <div className="fixed inset-0 z-[9999] bg-[#030712] flex flex-col animate-in fade-in duration-500 overflow-hidden">
                 {/* Apple-style animated gradient border */}
-                <AppleGlow borderWidth={3} glowSize={60} speed={3} />
+                <AppleGlow borderWidth={6} speed={3} />
 
                 {/* LightRays Background */}
                 <div className="absolute inset-0 z-0">
