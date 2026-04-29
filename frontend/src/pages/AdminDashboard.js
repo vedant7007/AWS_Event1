@@ -306,40 +306,22 @@ const AdminDashboard = () => {
     const targetYear = overrideYear !== null ? overrideYear : Number(menuItems.find(m => m.id === activeTab)?.year);
 
     if (start) {
-        // Enforce sequential rounds
-        if (targetYear > settings.currentRound + 1) {
-             setMsg({ type: 'error', text: `You have not completed Round ${targetYear}. Enforcing sequential progression.` });
-             return;
+        if (isNaN(targetYear)) {
+            setMsg({ type: 'error', text: 'Please navigate to a round tab first.' });
+            return;
         }
         if (targetYear < settings.currentRound) {
              setMsg({ type: 'error', text: `Cannot restart previous rounds. Use Reset Competition for a fresh start.` });
              return;
         }
-        
-        const hasProgress = teams.some(t => {
-            const yd = t.gameState?.[`year${targetYear}`];
-            if (!yd || !yd.answers) return false;
-            return Object.keys(yd.answers.cto || {}).length > 0 || 
-                   Object.keys(yd.answers.cfo || {}).length > 0 || 
-                   Object.keys(yd.answers.pm || {}).length > 0 ||
-                   Object.keys(yd.answers.fun || {}).length > 0;
-        });
-
-        if (targetYear === settings.currentRound && hasProgress && !settings.isRoundActive) {
-             setMsg({ type: 'error', text: `Cannot restart a round that has already been played. Use Reset Competition for a fresh start.` });
+        if (targetYear > settings.currentRound + 1) {
+             setMsg({ type: 'error', text: `Complete Round ${settings.currentRound + 1} first.` });
              return;
         }
-        
-        // Enforce that ALL teams completed the previous round
+
         if (targetYear > 0 && targetYear === settings.currentRound + 1) {
              const previousYear = targetYear - 1;
-             
-             // Check if previous round even started
-             // If currentRound is equal to previousYear but isRoundActive is still true, it hasn't finished yet.
-             // Wait, if currentRound < previousYear, that's already blocked.
-             
              const uncompletedTeams = teams.filter(t => {
-                 // Check if team has answers for all 3 roles (or if disqualified)
                  const yearData = t.gameState?.[`year${previousYear}`];
                  const ctoDone = yearData?.answers?.cto && Object.keys(yearData.answers.cto).length > 0;
                  const cfoDone = yearData?.answers?.cfo && Object.keys(yearData.answers.cfo).length > 0;
@@ -348,11 +330,7 @@ const AdminDashboard = () => {
              });
 
              if (uncompletedTeams.length > 0) {
-                 if (settings.currentRound === previousYear && !settings.isRoundActive && uncompletedTeams.length === teams.length) {
-                     setMsg({ type: 'error', text: `Round ${previousYear + 1} has not started yet.` });
-                 } else {
-                     setMsg({ type: 'error', text: `Round ${previousYear + 1} is still in progress.` });
-                 }
+                 setMsg({ type: 'error', text: `Round ${previousYear + 1} not completed by all teams yet.` });
                  return;
              }
         }
