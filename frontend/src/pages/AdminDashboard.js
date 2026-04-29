@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import Leaderboard from '../components/Leaderboard';
 import FunLeaderboard from '../components/FunLeaderboard';
+import LightRays from '../components/LightRays';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { adminAPI } from '../utils/api';
@@ -2181,20 +2182,30 @@ const AdminDashboard = () => {
         {/* FULL SCREEN LEADERBOARD OVERLAY */}
         {isFullScreenLeaderboard && (
             <div className="fixed inset-0 z-[9999] bg-[#030712] p-24 md:p-48 flex flex-col animate-in fade-in duration-500 overflow-hidden">
-                {/* Decorative Grid Background */}
-                <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-                     style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-                
-                <div className="absolute top-24 right-24 z-10">
-                    <button 
+                {/* LightRays Background */}
+                <div className="absolute inset-0 z-0">
+                    <LightRays
+                        raysOrigin="top-center"
+                        raysColor="#7C3AED"
+                        raysSpeed={0.6}
+                        lightSpread={2.5}
+                        rayLength={1.5}
+                        followMouse={true}
+                        mouseInfluence={0.15}
+                        noiseAmount={0.05}
+                        distortion={0.03}
+                        pulsating
+                    />
+                </div>
+
+                <div className="absolute top-24 right-24 z-20">
+                    <button
                         onClick={() => { setIsFullScreenLeaderboard(false); setFilteredRound(null); }}
-                        className="w-48 h-48 bg-white/5 hover:bg-red-500/20 text-white/50 hover:text-red-500 rounded-full flex items-center justify-center transition-all border border-white/10 hover:border-red-500/30 shadow-xl"
+                        className="w-48 h-48 bg-white/5 hover:bg-red-500/20 text-white/50 hover:text-red-500 rounded-full flex items-center justify-center transition-all border border-white/10 hover:border-red-500/30 shadow-xl backdrop-blur-sm"
                     >
                         <FiX size={24} />
                     </button>
                 </div>
-                
-                {/* Header removed as per user request for clean full-screen view */}
 
                 <div className="flex-1 overflow-y-auto hidden-scrollbar relative z-10">
                     {leaderboardMode === 'standard' ? (

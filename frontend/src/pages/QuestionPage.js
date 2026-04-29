@@ -8,6 +8,7 @@ import {
   FiCheckCircle, FiLoader, FiActivity, FiLock, FiSend,
   FiMaximize, FiLogOut
 } from 'react-icons/fi';
+import confetti from 'canvas-confetti';
 
 const QuestionPage = () => {
   const { year } = useParams();
@@ -93,6 +94,12 @@ const QuestionPage = () => {
     try {
       await submissionsAPI.submit(year, answers, 1200 - timeLeft);
       setSubmitted(true);
+      const end = Date.now() + 2500;
+      const burst = () => {
+        confetti({ particleCount: 80, spread: 100, origin: { x: Math.random(), y: Math.random() * 0.4 }, colors: ['#7C3AED', '#3b82f6', '#f59e0b', '#10b981', '#ec4899'] });
+        if (Date.now() < end) requestAnimationFrame(burst);
+      };
+      burst();
       setTimeout(() => {
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         navigate('/profile', { state: { submissionSuccess: true } });
